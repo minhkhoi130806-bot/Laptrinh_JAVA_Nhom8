@@ -23,6 +23,12 @@ public class ApiError {
     }
 
     // Giu nguyen constructor cu de code cua cac thanh vien khac van chay
+    // Noi dung loi
+    private String message;
+
+    public ApiError() {
+    }
+
     public ApiError(int status, String message) {
         this.timestamp = LocalDateTime.now();
         this.status = status;
@@ -76,4 +82,5 @@ public class ApiError {
     public void setPath(String path) {
         this.path = path;
     }
+}
 }
