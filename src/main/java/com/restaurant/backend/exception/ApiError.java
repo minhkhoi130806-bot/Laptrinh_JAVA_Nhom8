@@ -10,6 +10,19 @@ public class ApiError {
     // Ma loi HTTP
     private int status;
 
+    // Ten loi HTTP (Bad Request, Not Found, ...)
+    private String error;
+
+    // Noi dung loi
+    private String message;
+
+    // Duong dan API gay ra loi
+    private String path;
+
+    public ApiError() {
+    }
+
+    // Giu nguyen constructor cu de code cua cac thanh vien khac van chay
     // Noi dung loi
     private String message;
 
@@ -20,6 +33,14 @@ public class ApiError {
         this.timestamp = LocalDateTime.now();
         this.status = status;
         this.message = message;
+    }
+
+    public ApiError(int status, String error, String message, String path) {
+        this.timestamp = LocalDateTime.now();
+        this.status = status;
+        this.error = error;
+        this.message = message;
+        this.path = path;
     }
 
     public LocalDateTime getTimestamp() {
@@ -38,6 +59,14 @@ public class ApiError {
         this.status = status;
     }
 
+    public String getError() {
+        return error;
+    }
+
+    public void setError(String error) {
+        this.error = error;
+    }
+
     public String getMessage() {
         return message;
     }
@@ -45,4 +74,13 @@ public class ApiError {
     public void setMessage(String message) {
         this.message = message;
     }
+
+    public String getPath() {
+        return path;
+    }
+
+    public void setPath(String path) {
+        this.path = path;
+    }
+}
 }
