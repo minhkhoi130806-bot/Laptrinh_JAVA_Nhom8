@@ -1,3 +1,4 @@
+
 package com.restaurant.backend.exception;
 
 import java.time.LocalDateTime;
@@ -19,12 +20,23 @@ public class ApiError {
     // Duong dan API gay ra loi
     private String path;
 
+    public ApiError() {
+    }
+
+    // Giu nguyen constructor cu de code cua cac thanh vien khac van chay
+    // Noi dung loi
+    private String message;
+
+    public ApiError() {
+    }
+
     public ApiError(int status, String message) {
         this.timestamp = LocalDateTime.now();
         this.status = status;
         this.message = message;
     }
 
+    // Constructor day du thong tin loi
     public ApiError(int status, String error, String message, String path) {
         this.timestamp = LocalDateTime.now();
         this.status = status;
@@ -72,4 +84,5 @@ public class ApiError {
     public void setPath(String path) {
         this.path = path;
     }
+}
 }
