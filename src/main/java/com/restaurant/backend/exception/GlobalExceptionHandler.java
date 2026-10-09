@@ -97,17 +97,3 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(status).body(error);
     }
 }
-    // Xu ly cac loi khong tim thay tai nguyen
-    @ExceptionHandler(RuntimeException.class)
-    public ResponseEntity<ApiError> handleRuntimeException(RuntimeException ex) {
-
-        ApiError error = new ApiError(
-                HttpStatus.BAD_REQUEST.value(),
-                ex.getMessage()
-        );
-
-        return ResponseEntity
-                .status(HttpStatus.BAD_REQUEST)
-                .body(error);
-    }
-}
