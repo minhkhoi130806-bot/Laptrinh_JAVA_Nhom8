@@ -9,6 +9,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
+import java.time.LocalDateTime;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -47,4 +48,11 @@ public class DiningTable {
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
     private List<Reservation> reservations = new ArrayList<>();
+
+    // Thùng rác: xóa mềm, không mất dữ liệu lịch sử (đơn hàng, đặt bàn...)
+    @Column(nullable = false, columnDefinition = "boolean default false")
+    private Boolean deleted = false;
+
+    @Column(name = "deleted_at")
+    private LocalDateTime deletedAt;
 }

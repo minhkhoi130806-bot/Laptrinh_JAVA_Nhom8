@@ -31,3 +31,6 @@ build/
 
 ### VS Code ###
 .vscode/
+
+# Ảnh upload (lưu cục bộ trong lúc dev)
+uploads/

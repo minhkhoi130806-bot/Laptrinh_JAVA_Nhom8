@@ -10,6 +10,7 @@ public record ReservationResponse(
         Long tableId,
         LocalDateTime reservedAt,
         Integer guestCount,
-        ReservationStatus status
+        ReservationStatus status,
+        String note
 ) {
 }

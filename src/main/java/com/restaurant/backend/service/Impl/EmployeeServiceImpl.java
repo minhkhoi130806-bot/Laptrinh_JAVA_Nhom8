@@ -1,5 +1,6 @@
 package com.restaurant.backend.service.Impl;
 
+import com.restaurant.backend.dto.ListScope;
 import com.restaurant.backend.entity.Employee;
 import com.restaurant.backend.exception.BadRequestException;
 import com.restaurant.backend.exception.NotFoundException;
@@ -9,6 +10,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
@@ -37,8 +39,11 @@ public class EmployeeServiceImpl implements EmployeeService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<Employee> getAll() {
-        return employeeRepository.findAll();
+    public List<Employee> getAll(ListScope scope) {
+        if (scope == ListScope.ALL) {
+            return employeeRepository.findAll();
+        }
+        return employeeRepository.findByDeleted(scope == ListScope.TRASH);
     }
 
     @Override
@@ -71,7 +76,29 @@ public class EmployeeServiceImpl implements EmployeeService {
     @Override
     @Transactional
     public void delete(Long id) {
-        employeeRepository.delete(getById(id));
+        Employee existing = getById(id);
+        existing.setDeleted(true);
+        existing.setDeletedAt(LocalDateTime.now());
+        employeeRepository.save(existing);
+    }
+
+    @Override
+    @Transactional
+    public Employee restore(Long id) {
+        Employee existing = getById(id);
+        existing.setDeleted(false);
+        existing.setDeletedAt(null);
+        return employeeRepository.save(existing);
+    }
+
+    @Override
+    @Transactional
+    public void purge(Long id) {
+        Employee existing = getById(id);
+        if (!Boolean.TRUE.equals(existing.getDeleted())) {
+            throw new BadRequestException("Chỉ xóa vĩnh viễn được nhân viên đang trong thùng rác");
+        }
+        employeeRepository.delete(existing);
     }
 
     private void validate(Employee e) {

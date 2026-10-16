@@ -3,6 +3,7 @@ package com.restaurant.backend.dto;
 import com.restaurant.backend.entity.EmployeeRole;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 
 // Không trả password về client
 public record EmployeeResponse(
@@ -11,6 +12,8 @@ public record EmployeeResponse(
         String fullName,
         EmployeeRole role,
         String phone,
-        BigDecimal salary
+        BigDecimal salary,
+        Boolean deleted,
+        LocalDateTime deletedAt
 ) {
 }

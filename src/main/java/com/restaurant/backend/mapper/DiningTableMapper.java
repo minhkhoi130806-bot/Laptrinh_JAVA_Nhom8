@@ -27,7 +27,9 @@ public class DiningTableMapper {
                 table.getTableCode(),
                 table.getCapacity(),
                 table.getZone(),
-                table.getStatus()
+                table.getStatus(),
+                table.getDeleted(),
+                table.getDeletedAt()
         );
     }
 }
