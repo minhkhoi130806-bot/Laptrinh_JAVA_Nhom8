@@ -1,0 +1,84 @@
+package com.restaurant.backend.controller;
+
+import com.restaurant.backend.dto.ListScope;
+import com.restaurant.backend.dto.MenuItemRequest;
+import com.restaurant.backend.dto.MenuItemResponse;
+import com.restaurant.backend.dto.RecipeLineRequest;
+import com.restaurant.backend.dto.RecipeLineResponse;
+import com.restaurant.backend.service.MenuItemService;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+
+@RestController
+@RequestMapping("/api/menu-items")
+public class MenuItemController {
+
+    private final MenuItemService menuItemService;
+
+    public MenuItemController(MenuItemService menuItemService) {
+        this.menuItemService = menuItemService;
+    }
+
+    @PostMapping
+    @ResponseStatus(HttpStatus.CREATED)
+    public MenuItemResponse create(@RequestBody MenuItemRequest request) {
+        return menuItemService.create(request);
+    }
+
+    // GET /api/menu-items  |  ?categoryId=1  |  ?scope=TRASH  |  ?scope=ALL
+    @GetMapping
+    public List<MenuItemResponse> getAll(@RequestParam(defaultValue = "ACTIVE") ListScope scope,
+                                         @RequestParam(required = false) Long categoryId) {
+        return menuItemService.getAll(scope, categoryId);
+    }
+
+    @GetMapping("/{id}")
+    public MenuItemResponse getById(@PathVariable Long id) {
+        return menuItemService.getById(id);
+    }
+
+    @PutMapping("/{id}")
+    public MenuItemResponse update(@PathVariable Long id, @RequestBody MenuItemRequest request) {
+        return menuItemService.update(id, request);
+    }
+
+    // PATCH /api/menu-items/{id}/available?value=false  (bật/tắt bán nhanh)
+    @PatchMapping("/{id}/available")
+    public MenuItemResponse setAvailable(@PathVariable Long id, @RequestParam("value") boolean value) {
+        return menuItemService.setAvailable(id, value);
+    }
+
+    // Chuyển vào thùng rác
+    @DeleteMapping("/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void delete(@PathVariable Long id) {
+        menuItemService.delete(id);
+    }
+
+    // Khôi phục từ thùng rác
+    @PostMapping("/{id}/restore")
+    public MenuItemResponse restore(@PathVariable Long id) {
+        return menuItemService.restore(id);
+    }
+
+    // Xóa vĩnh viễn (chỉ khi đang ở thùng rác)
+    @DeleteMapping("/{id}/permanent")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void purge(@PathVariable Long id) {
+        menuItemService.purge(id);
+    }
+
+    // ----- Công thức món -----
+    @GetMapping("/{id}/recipe")
+    public List<RecipeLineResponse> getRecipe(@PathVariable Long id) {
+        return menuItemService.getRecipe(id);
+    }
+
+    // Body: [{"ingredientId":1,"quantityNeeded":0.2}, ...]  (thay toàn bộ công thức)
+    @PutMapping("/{id}/recipe")
+    public List<RecipeLineResponse> saveRecipe(@PathVariable Long id, @RequestBody List<RecipeLineRequest> lines) {
+        return menuItemService.saveRecipe(id, lines);
+    }
+}
