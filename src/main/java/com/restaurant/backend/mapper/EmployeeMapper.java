@@ -29,7 +29,9 @@ public class EmployeeMapper {
                 employee.getFullName(),
                 employee.getRole(),
                 employee.getPhone(),
-                employee.getSalary()
+                employee.getSalary(),
+                employee.getDeleted(),
+                employee.getDeletedAt()
         );
     }
 }

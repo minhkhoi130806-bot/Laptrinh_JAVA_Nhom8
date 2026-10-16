@@ -10,6 +10,7 @@ import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -46,6 +47,17 @@ public class GlobalExceptionHandler {
         return buildResponse(
                 HttpStatus.BAD_REQUEST,
                 "Giá trị tham số '" + ex.getName() + "' không hợp lệ",
+                request
+        );
+    }
+
+    // File upload qua lon (413)
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<ApiError> handleUploadTooLarge(
+            MaxUploadSizeExceededException ex, HttpServletRequest request) {
+        return buildResponse(
+                HttpStatus.PAYLOAD_TOO_LARGE,
+                "Ảnh quá lớn (tối đa 5MB)",
                 request
         );
     }
