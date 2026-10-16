@@ -1,0 +1,21 @@
+/*
+ * CSS DÙNG CHUNG cho cả admin và shop — chỉ để reset / font / thẻ HTML cơ bản.
+ * KHÔNG đặt màu thương hiệu hay class riêng của admin / shop ở đây:
+ *   - Admin : src/app/admin/admin.css  (mọi class bắt đầu bằng "adm-")
+ *   - Shop  : (sau này) src/app/(shop)/shop.css  (mọi class bắt đầu bằng "shop-")
+ */
+*,
+*::before,
+*::after { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+a { color: inherit; text-decoration: none; }
+img { max-width: 100%; }
+h1, h2, h3, h4, p { margin: 0; }
+button, input, select, textarea { font: inherit; }

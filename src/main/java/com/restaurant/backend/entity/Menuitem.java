@@ -11,6 +11,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import java.time.LocalDateTime;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -64,4 +65,10 @@ public class Menuitem {
     @Column(nullable = false)
     private Boolean available = true;
 
+    // Thùng rác: xóa mềm, không mất dữ liệu lịch sử (đơn hàng, đặt bàn...)
+    @Column(nullable = false, columnDefinition = "boolean default false")
+    private Boolean deleted = false;
+
+    @Column(name = "deleted_at")
+    private LocalDateTime deletedAt;
 }

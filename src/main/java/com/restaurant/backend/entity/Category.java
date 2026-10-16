@@ -34,6 +34,10 @@ public class Category {
     @Column(length = 255)
     private String description;
 
+    // Ảnh đại diện nhóm món, ví dụ /uploads/categories/abc.jpg
+    @Column(name = "image_url", length = 255)
+    private String imageUrl;
+
     // 1 nhóm - N món ăn (phía "một" của quan hệ)
     @OneToMany(mappedBy = "category")
     @ToString.Exclude
