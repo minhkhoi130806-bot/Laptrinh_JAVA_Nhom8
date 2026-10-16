@@ -14,6 +14,9 @@ public interface InvoiceService {
     // Lay danh sach hoa don
     List<Invoice> getAll();
 
+    // Lay hoa don cua 1 don hang
+    List<Invoice> getByOrderId(Integer orderId);
+
     // Tim hoa don theo ID
     Invoice getById(Integer id);
 

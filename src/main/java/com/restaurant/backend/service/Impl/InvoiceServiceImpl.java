@@ -33,6 +33,12 @@ public class InvoiceServiceImpl implements InvoiceService {
         return invoiceRepository.findAll();
     }
 
+    // Lay hoa don cua 1 don hang
+    @Override
+    public List<Invoice> getByOrderId(Integer orderId) {
+        return invoiceRepository.findByOrderId(orderId);
+    }
+
     // Tim hoa don theo ID
     @Override
     public Invoice getById(Integer id) {

@@ -49,7 +49,7 @@ export default function AdminShell({ children }) {
           {open && <div className="adm-scrim" onClick={() => setOpen(false)} />}
           <aside className={`adm-side ${open ? 'open' : ''}`}>
             <Link href="/admin" className="adm-brand" onClick={() => setOpen(false)}>
-              🍜 Nhà hàng<small>Khu quản trị · Nhóm 8</small>
+              🍜 Nhà hàng Hàn<small>Trang quản trị · Nhóm 8</small>
             </Link>
             {NAV.map((g, gi) => (
               <div key={gi}>

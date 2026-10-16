@@ -1,5 +1,6 @@
 package com.restaurant.backend.service.Impl;
 
+import com.restaurant.backend.dto.ListScope;
 import com.restaurant.backend.entity.Customer;
 import com.restaurant.backend.exception.BadRequestException;
 import com.restaurant.backend.exception.NotFoundException;
@@ -8,6 +9,7 @@ import com.restaurant.backend.service.CustomerService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
@@ -33,8 +35,11 @@ public class CustomerServiceImpl implements CustomerService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<Customer> getAll() {
-        return customerRepository.findAll();
+    public List<Customer> getAll(ListScope scope) {
+        if (scope == ListScope.ALL) {
+            return customerRepository.findAll();
+        }
+        return customerRepository.findByDeleted(scope == ListScope.TRASH);
     }
 
     @Override
@@ -55,13 +60,41 @@ public class CustomerServiceImpl implements CustomerService {
         existing.setFullName(data.getFullName());
         existing.setPhone(data.getPhone());
         existing.setEmail(data.getEmail());
+        if (data.getLoyaltyPoints() != null) {
+            if (data.getLoyaltyPoints() < 0) {
+                throw new BadRequestException("Điểm tích lũy không được âm");
+            }
+            existing.setLoyaltyPoints(data.getLoyaltyPoints());
+        }
         return customerRepository.save(existing);
     }
 
     @Override
     @Transactional
     public void delete(Long id) {
-        customerRepository.delete(getById(id));
+        Customer existing = getById(id);
+        existing.setDeleted(true);
+        existing.setDeletedAt(LocalDateTime.now());
+        customerRepository.save(existing);
+    }
+
+    @Override
+    @Transactional
+    public Customer restore(Long id) {
+        Customer existing = getById(id);
+        existing.setDeleted(false);
+        existing.setDeletedAt(null);
+        return customerRepository.save(existing);
+    }
+
+    @Override
+    @Transactional
+    public void purge(Long id) {
+        Customer existing = getById(id);
+        if (!Boolean.TRUE.equals(existing.getDeleted())) {
+            throw new BadRequestException("Chỉ xóa vĩnh viễn được khách hàng đang trong thùng rác");
+        }
+        customerRepository.delete(existing);
     }
 
     private void validate(Customer customer) {

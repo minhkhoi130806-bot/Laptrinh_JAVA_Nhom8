@@ -3,6 +3,7 @@ package com.restaurant.backend.controller;
 
 import com.restaurant.backend.dto.InvoiceRequest;
 import com.restaurant.backend.dto.InvoiceResponse;
+import com.restaurant.backend.entity.Invoice;
 import com.restaurant.backend.mapper.InvoiceMapper;
 import com.restaurant.backend.service.InvoiceService;
 import org.springframework.http.HttpStatus;
@@ -34,11 +35,13 @@ public class InvoiceController {
         );
     }
 
-    // Lay danh sach hoa don
+    // Lay danh sach hoa don: GET /api/invoices?orderId=1
     @GetMapping
-    public List<InvoiceResponse> getAll() {
-        return invoiceService.getAll()
-                .stream()
+    public List<InvoiceResponse> getAll(@RequestParam(required = false) Integer orderId) {
+        List<Invoice> invoices = orderId != null
+                ? invoiceService.getByOrderId(orderId)
+                : invoiceService.getAll();
+        return invoices.stream()
                 .map(invoiceMapper::toResponse)
                 .toList();
     }

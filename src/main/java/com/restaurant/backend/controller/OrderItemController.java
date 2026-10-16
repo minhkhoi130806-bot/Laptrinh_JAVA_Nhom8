@@ -5,6 +5,7 @@ import com.restaurant.backend.dto.OrderItemRequest;
 import com.restaurant.backend.dto.OrderItemResponse;
 import com.restaurant.backend.mapper.OrderItemMapper;
 import com.restaurant.backend.service.OrderItemService;
+import com.restaurant.backend.entity.OrderItem;
 import com.restaurant.backend.entity.OrderItemId;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
@@ -36,11 +37,13 @@ public class OrderItemController {
         );
     }
 
-    // Lay danh sach chi tiet don hang
+    // Lay danh sach chi tiet don hang: GET /api/order-items?orderId=1
     @GetMapping
-    public List<OrderItemResponse> getAll() {
-        return orderItemService.getAll()
-                .stream()
+    public List<OrderItemResponse> getAll(@RequestParam(required = false) Integer orderId) {
+        List<OrderItem> items = orderId != null
+                ? orderItemService.getByOrderId(orderId)
+                : orderItemService.getAll();
+        return items.stream()
                 .map(orderItemMapper::toResponse)
                 .toList();
     }

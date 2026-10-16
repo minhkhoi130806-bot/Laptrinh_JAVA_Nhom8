@@ -16,6 +16,8 @@ public class CustomerMapper {
         customer.setFullName(request.fullName());
         customer.setPhone(request.phone());
         customer.setEmail(request.email());
+        // null = không đổi điểm (service tự xử lý)
+        customer.setLoyaltyPoints(request.loyaltyPoints());
         return customer;
     }
 
@@ -25,7 +27,9 @@ public class CustomerMapper {
                 customer.getFullName(),
                 customer.getPhone(),
                 customer.getEmail(),
-                customer.getLoyaltyPoints()
+                customer.getLoyaltyPoints(),
+                customer.getDeleted(),
+                customer.getDeletedAt()
         );
     }
 }

@@ -14,6 +14,9 @@ public interface OrderItemService {
     // Lay danh sach chi tiet don hang
     List<OrderItem> getAll();
 
+    // Lay cac mon cua 1 don hang
+    List<OrderItem> getByOrderId(Integer orderId);
+
     // Tim chi tiet theo ma don hang va ma mon an
     OrderItem getById(OrderItemId id);
 

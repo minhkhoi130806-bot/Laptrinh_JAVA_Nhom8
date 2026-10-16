@@ -32,6 +32,12 @@ public class OrderItemServiceImpl implements OrderItemService {
         return orderItemRepository.findAll();
     }
 
+    // Lay cac mon cua 1 don hang
+    @Override
+    public List<OrderItem> getByOrderId(Integer orderId) {
+        return orderItemRepository.findByIdOrderId(orderId);
+    }
+
     // Tim chi tiet theo khoa chinh kep
     @Override
     public OrderItem getById(OrderItemId id) {

@@ -51,4 +51,8 @@ public class Reservation {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private ReservationStatus status = ReservationStatus.PENDING;
+
+    // Ghi chú của khách / nhân viên (sinh nhật, ghế trẻ em, ...)
+    @Column(length = 255)
+    private String note;
 }

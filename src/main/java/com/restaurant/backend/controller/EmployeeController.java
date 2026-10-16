@@ -2,6 +2,7 @@ package com.restaurant.backend.controller;
 
 import com.restaurant.backend.dto.EmployeeRequest;
 import com.restaurant.backend.dto.EmployeeResponse;
+import com.restaurant.backend.dto.ListScope;
 import com.restaurant.backend.mapper.EmployeeMapper;
 import com.restaurant.backend.service.EmployeeService;
 import org.springframework.http.HttpStatus;
@@ -27,9 +28,10 @@ public class EmployeeController {
         return employeeMapper.toResponse(employeeService.create(employeeMapper.toEntity(request)));
     }
 
+    // GET /api/employees  |  ?scope=TRASH  |  ?scope=ALL
     @GetMapping
-    public List<EmployeeResponse> getAllEmployees() {
-        return employeeService.getAll().stream().map(employeeMapper::toResponse).toList();
+    public List<EmployeeResponse> getAllEmployees(@RequestParam(defaultValue = "ACTIVE") ListScope scope) {
+        return employeeService.getAll(scope).stream().map(employeeMapper::toResponse).toList();
     }
 
     @GetMapping("/{id}")
@@ -42,9 +44,23 @@ public class EmployeeController {
         return employeeMapper.toResponse(employeeService.update(id, employeeMapper.toEntity(request)));
     }
 
+    // Chuyển vào thùng rác
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteEmployee(@PathVariable Long id) {
         employeeService.delete(id);
+    }
+
+    // Khôi phục từ thùng rác
+    @PostMapping("/{id}/restore")
+    public EmployeeResponse restoreEmployee(@PathVariable Long id) {
+        return employeeMapper.toResponse(employeeService.restore(id));
+    }
+
+    // Xóa vĩnh viễn (chỉ khi đang ở thùng rác)
+    @DeleteMapping("/{id}/permanent")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void purgeEmployee(@PathVariable Long id) {
+        employeeService.purge(id);
     }
 }

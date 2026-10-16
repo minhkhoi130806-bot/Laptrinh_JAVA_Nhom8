@@ -21,6 +21,7 @@ public class ReservationMapper {
         reservation.setTable(table);
         reservation.setReservedAt(request.reservedAt());
         reservation.setGuestCount(request.guestCount());
+        reservation.setNote(request.note() == null || request.note().isBlank() ? null : request.note().trim());
         reservation.setStatus(ReservationStatus.PENDING);
         return reservation;
     }
@@ -33,7 +34,8 @@ public class ReservationMapper {
                 reservation.getTable().getId(),
                 reservation.getReservedAt(),
                 reservation.getGuestCount(),
-                reservation.getStatus()
+                reservation.getStatus(),
+                reservation.getNote()
         );
     }
 }
