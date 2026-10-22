@@ -87,6 +87,17 @@ export const categories = {
 // ---------- Nguyên liệu ----------
 export const ingredients = {
   key: 'ingredients', base: '/admin/ingredients', endpoint: '/ingredients', title: 'Nguyên liệu', singular: 'nguyên liệu', icon: '🥬',
+  summary: (data) => {
+    const low = (data || []).filter((i) => i.lowStock);
+    if (low.length === 0) return null;
+    return (
+      <div className="adm-alert danger" style={{ marginBottom: 16 }}>
+        ⚠️ <strong>Cảnh báo nguyên liệu dưới mức tồn tối thiểu ({low.length}):</strong>{' '}
+        {low.map((i) => `${i.name} (còn ${num(i.stockQty)} / tối thiểu ${num(i.minStock)} ${i.unit})`).join(', ')}.
+        {' '}<Link href="/admin/receipts/create" style={{ textDecoration: 'underline', fontWeight: 600 }}>Lập phiếu nhập ngay →</Link>
+      </div>
+    );
+  },
   titleOf: (r) => r.name,
   filters: [{ name: 'lowStock', label: 'Mọi mức tồn', options: [{ value: 'true', label: 'Sắp hết hàng' }, { value: 'false', label: 'Còn đủ' }] }],
   fields: [

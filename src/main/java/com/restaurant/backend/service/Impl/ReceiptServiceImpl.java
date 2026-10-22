@@ -96,7 +96,8 @@ public class ReceiptServiceImpl implements ReceiptService {
             detail.setUnitPrice(line.unitPrice());
             receipt.addDetail(detail);
 
-            ingredient.setStockQty(ingredient.getStockQty().add(line.quantity()));
+            BigDecimal currentStock = ingredient.getStockQty() != null ? ingredient.getStockQty() : BigDecimal.ZERO;
+            ingredient.setStockQty(currentStock.add(line.quantity()));
             ingredientRepository.save(ingredient);
             total = total.add(line.quantity().multiply(line.unitPrice()));
         }

@@ -14,6 +14,10 @@ function Lines({ menuId, initial, ingredients }) {
   const upd = (i, patch) => setLines((ls) => ls.map((l, k) => (k === i ? { ...l, ...patch } : l)));
 
   const save = async () => {
+    const validLines = lines.filter((l) => l.ingredientId !== '');
+    if (validLines.some((l) => !l.quantityNeeded || Number(l.quantityNeeded) <= 0)) {
+      return setErr('Định lượng của các nguyên liệu phải lớn hơn 0');
+    }
     setSaving(true); setErr('');
     try {
       const body = lines.filter((l) => l.ingredientId !== '').map((l) => ({ ingredientId: Number(l.ingredientId), quantityNeeded: Number(l.quantityNeeded) }));
@@ -29,7 +33,9 @@ function Lines({ menuId, initial, ingredients }) {
         <div className="adm-inline-form" key={i}>
           <select className="adm-input" value={l.ingredientId} onChange={(e) => upd(i, { ingredientId: e.target.value })}>
             <option value="">— Chọn nguyên liệu —</option>
-            {ingredients.map((g) => <option key={g.id} value={g.id}>{g.name} ({g.unit})</option>)}
+            {ingredients
+              .filter((g) => String(g.id) === String(l.ingredientId) || !lines.some((x) => String(x.ingredientId) === String(g.id)))
+              .map((g) => <option key={g.id} value={g.id}>{g.name} ({g.unit}){g.lowStock ? ' [Sắp hết]' : ''}</option>)}
           </select>
           <div style={{ position: 'relative' }}>
             <input className="adm-input" type="number" min="0" step="0.001" placeholder="Định lượng" value={l.quantityNeeded}
