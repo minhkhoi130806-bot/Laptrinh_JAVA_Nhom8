@@ -25,7 +25,7 @@ import java.math.BigDecimal;
 @Table(name = "menu_item")
 @Data
 @NoArgsConstructor
-@ 
+@AllArgsConstructor
 public class Menuitem {
 
     @Id

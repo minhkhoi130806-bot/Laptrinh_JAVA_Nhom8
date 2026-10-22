@@ -16,7 +16,6 @@ import lombok.NoArgsConstructor;
 @Table(name = "supplier")
 @Data
 @NoArgsConstructor
-@AllArgsConstructor
 public class Supplier {
 
     @Id

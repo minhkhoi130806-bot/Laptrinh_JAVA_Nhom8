@@ -23,7 +23,6 @@ import java.time.LocalDateTime;
 @Table(name = "reservation")
 @Data
 @NoArgsConstructor
-@AllArgsConstructor
 public class Reservation {
  
     @Id
