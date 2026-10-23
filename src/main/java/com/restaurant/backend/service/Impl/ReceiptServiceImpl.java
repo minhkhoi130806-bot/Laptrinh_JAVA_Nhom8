@@ -23,6 +23,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -138,5 +140,25 @@ public class ReceiptServiceImpl implements ReceiptService {
 
         List<ReceiptResponse> recent = all.stream().limit(10).map(mapper::toResponse).toList();
         return new PurchaseReportResponse(totalSpent, totalCount, bySupplier, recent);
+    }
+
+    @Override
+    @Transactional
+    public ReceiptResponse updateNote(Long id, String auditNote) {
+        PurchaseReceipt receipt = receiptRepository.findById(id)
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy phiếu nhập id = " + id));
+
+        String trimmed = auditNote != null ? auditNote.trim() : "";
+        if (trimmed.isBlank()) {
+            throw new BadRequestException("Nội dung ghi chú kiểm toán không được để trống");
+        }
+
+        String existing = receipt.getNote();
+        String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm"));
+        String entry = "[" + timestamp + " - Kiểm toán/Giải trình]: " + trimmed;
+        String updated = (existing == null || existing.isBlank()) ? entry : existing + "\n" + entry;
+
+        receipt.setNote(updated);
+        return mapper.toResponse(receiptRepository.save(receipt));
     }
 }

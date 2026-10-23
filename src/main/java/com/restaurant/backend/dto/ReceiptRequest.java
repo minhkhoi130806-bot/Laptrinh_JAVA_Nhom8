@@ -10,4 +10,5 @@ public record ReceiptRequest(
         String note,
         List<ReceiptDetailRequest> details
 ) {
+    public record AuditNoteRequest(String note) {}
 }

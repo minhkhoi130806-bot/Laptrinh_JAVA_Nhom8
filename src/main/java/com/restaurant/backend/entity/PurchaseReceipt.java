@@ -56,7 +56,7 @@ public class PurchaseReceipt {
     @Column(name = "total_amount", nullable = false, precision = 14, scale = 2)
     private BigDecimal totalAmount = BigDecimal.ZERO;
 
-    @Column(length = 255)
+    @Column(length = 3000)
     private String note;
 
     // 1 phiếu - N dòng chi tiết. Lưu/xóa phiếu thì lưu/xóa luôn chi tiết
