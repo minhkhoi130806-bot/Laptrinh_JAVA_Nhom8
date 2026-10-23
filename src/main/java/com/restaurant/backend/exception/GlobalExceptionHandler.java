@@ -1,4 +1,3 @@
-
 package com.restaurant.backend.exception;
 
 import jakarta.servlet.http.HttpServletRequest;
@@ -56,7 +55,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiError> handleUploadTooLarge(
             MaxUploadSizeExceededException ex, HttpServletRequest request) {
         return buildResponse(
-                HttpStatus.PAYLOAD_TOO_LARGE,
+                HttpStatus.CONTENT_TOO_LARGE,
                 "Ảnh quá lớn (tối đa 5MB)",
                 request
         );

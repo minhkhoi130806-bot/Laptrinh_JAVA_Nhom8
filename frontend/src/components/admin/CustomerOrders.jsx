@@ -24,6 +24,7 @@ export default function CustomerOrders({ customerId }) {
         <div className="adm-stat"><span className="adm-muted">Tổng số đơn</span><b>{list.length}</b></div>
         <div className="adm-stat"><span className="adm-muted">Đơn đã thanh toán</span><b>{paid.length}</b></div>
         <div className="adm-stat"><span className="adm-muted">Tổng chi tiêu</span><b>{vnd(spent)}</b></div>
+        <div className="adm-stat"><span className="adm-muted">Lượt đặt bàn</span><b>{resv.data?.length ?? 0}</b></div>
       </div>
 
       <section className="adm-section" style={{ padding: 0 }}>
@@ -45,6 +46,8 @@ export default function CustomerOrders({ customerId }) {
 
       <section className="adm-section" style={{ padding: 0, marginTop: 20 }}>
         <h3 style={{ marginBottom: 10 }}>📅 Lịch sử đặt bàn</h3>
+        {resv.loading && <div className="adm-muted">Đang tải lịch sử đặt bàn…</div>}
+        {resv.error && <div className="adm-alert">{resv.error}</div>}
         {resv.data && (
           <DataTable rows={[...resv.data].sort((a, b) => new Date(b.reservedAt) - new Date(a.reservedAt))}
             rowHref={(r) => `/admin/reservations/${r.id}`} empty="Chưa có lượt đặt bàn nào."

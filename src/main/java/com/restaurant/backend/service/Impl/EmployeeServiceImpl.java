@@ -1,11 +1,16 @@
 package com.restaurant.backend.service.Impl;
 
 import com.restaurant.backend.dto.ListScope;
+import com.restaurant.backend.entity.AccountType;
 import com.restaurant.backend.entity.Employee;
+import com.restaurant.backend.entity.EmployeeRole;
+import com.restaurant.backend.entity.UserAccount;
 import com.restaurant.backend.exception.BadRequestException;
 import com.restaurant.backend.exception.NotFoundException;
 import com.restaurant.backend.repository.EmployeeRepository;
+import com.restaurant.backend.repository.UserAccountRepository;
 import com.restaurant.backend.service.EmployeeService;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -17,9 +22,16 @@ import java.util.List;
 public class EmployeeServiceImpl implements EmployeeService {
 
     private final EmployeeRepository employeeRepository;
+    private final UserAccountRepository userAccountRepository;
+    private final PasswordEncoder passwordEncoder;
 
-    public EmployeeServiceImpl(EmployeeRepository employeeRepository) {
+    public EmployeeServiceImpl(
+            EmployeeRepository employeeRepository,
+            UserAccountRepository userAccountRepository,
+            PasswordEncoder passwordEncoder) {
         this.employeeRepository = employeeRepository;
+        this.userAccountRepository = userAccountRepository;
+        this.passwordEncoder = passwordEncoder;
     }
 
     @Override
@@ -32,9 +44,14 @@ public class EmployeeServiceImpl implements EmployeeService {
         if (employeeRepository.existsByUsername(employee.getUsername())) {
             throw new BadRequestException("Username đã tồn tại");
         }
+        if (userAccountRepository.existsByUsername(employee.getUsername())) {
+            throw new BadRequestException("Username đã được sử dụng");
+        }
         employee.setId(null);
-        // TODO: mã hóa mật khẩu (BCrypt) khi nhóm thêm Spring Security
-        return employeeRepository.save(employee);
+        employee.setPassword(passwordEncoder.encode(employee.getPassword()));
+        Employee savedEmployee = employeeRepository.save(employee);
+        saveLoginAccount(savedEmployee, savedEmployee.getPassword());
+        return savedEmployee;
     }
 
     @Override
@@ -61,6 +78,12 @@ public class EmployeeServiceImpl implements EmployeeService {
         if (employeeRepository.existsByUsernameAndIdNot(data.getUsername(), id)) {
             throw new BadRequestException("Username đã tồn tại");
         }
+        UserAccount accountByUsername = userAccountRepository.findByUsername(data.getUsername()).orElse(null);
+        if (accountByUsername != null
+                && (accountByUsername.getEmployee() == null
+                || !accountByUsername.getEmployee().getId().equals(id))) {
+            throw new BadRequestException("Username đã được sử dụng");
+        }
         existing.setUsername(data.getUsername());
         existing.setFullName(data.getFullName());
         existing.setRole(data.getRole());
@@ -68,9 +91,11 @@ public class EmployeeServiceImpl implements EmployeeService {
         existing.setSalary(data.getSalary());
         // Chỉ đổi mật khẩu khi request có gửi password mới
         if (data.getPassword() != null && !data.getPassword().isBlank()) {
-            existing.setPassword(data.getPassword());
+            existing.setPassword(passwordEncoder.encode(data.getPassword()));
         }
-        return employeeRepository.save(existing);
+        Employee savedEmployee = employeeRepository.save(existing);
+        saveLoginAccount(savedEmployee, savedEmployee.getPassword());
+        return savedEmployee;
     }
 
     @Override
@@ -98,6 +123,7 @@ public class EmployeeServiceImpl implements EmployeeService {
         if (!Boolean.TRUE.equals(existing.getDeleted())) {
             throw new BadRequestException("Chỉ xóa vĩnh viễn được nhân viên đang trong thùng rác");
         }
+        userAccountRepository.findByEmployeeId(id).ifPresent(userAccountRepository::delete);
         employeeRepository.delete(existing);
     }
 
@@ -117,5 +143,30 @@ public class EmployeeServiceImpl implements EmployeeService {
         if (e.getSalary() == null || e.getSalary().compareTo(BigDecimal.ZERO) < 0) {
             throw new BadRequestException("Lương không hợp lệ");
         }
+    }
+
+    private void saveLoginAccount(Employee employee, String encodedPassword) {
+        if (encodedPassword == null || encodedPassword.isBlank()) {
+            throw new BadRequestException("Mật khẩu nhân viên không được để trống");
+        }
+        if (!encodedPassword.startsWith("$2")) {
+            encodedPassword = passwordEncoder.encode(encodedPassword);
+            employee.setPassword(encodedPassword);
+            employeeRepository.save(employee);
+        }
+
+        UserAccount account = userAccountRepository.findByEmployeeId(employee.getId()).orElse(null);
+        if (account == null) {
+            account = new UserAccount();
+            account.setEmployee(employee);
+        }
+
+        account.setUsername(employee.getUsername());
+        account.setPassword(encodedPassword);
+        account.setEmployeeRole(employee.getRole());
+        account.setAccountType(employee.getRole() == EmployeeRole.MANAGER
+                ? AccountType.ADMIN
+                : AccountType.EMPLOYEE);
+        userAccountRepository.save(account);
     }
 }

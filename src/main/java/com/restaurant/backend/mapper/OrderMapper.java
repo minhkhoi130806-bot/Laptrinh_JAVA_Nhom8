@@ -6,11 +6,24 @@ import com.restaurant.backend.dto.OrderTotals;
 import com.restaurant.backend.entity.Order;
 import org.springframework.stereotype.Component;
 
-// Chuyen doi du lieu don hang
+/**
+ * =========================================================================
+ * LỚP CHUYỂN ĐỔI DỮ LIỆU ĐƠN HÀNG (OrderMapper)
+ * Người phụ trách: Ngô Minh Khôi (Tuần 3 - Nghiệp vụ Đơn hàng)
+ * 
+ * Mục đích:
+ * Chuyển đổi qua lại giữa:
+ * - OrderRequest (DTO nhận từ Client) -> Order (Entity lưu vào CSDL)
+ * - Order (Entity đọc từ CSDL) + OrderTotals (tổng tiền) -> OrderResponse (DTO gửi về Client)
+ * Giúp bảo vệ dữ liệu nội bộ của CSDL không bị lộ trực tiếp ra ngoài API.
+ * =========================================================================
+ */
 @Component
 public class OrderMapper {
 
-    // Chuyen Request thanh Entity
+    /**
+     * Chuyển dữ liệu DTO từ Client thành đối tượng Entity để lưu vào MySQL
+     */
     public Order toEntity(OrderRequest request) {
         if (request == null) {
             return null;
@@ -25,12 +38,14 @@ public class OrderMapper {
         return order;
     }
 
-    // Chuyen Entity thanh Response (totals = null thi coi nhu don chua co mon)
+    /**
+     * Chuyển đối tượng Entity từ MySQL kèm tổng tiền thành DTO trả về cho giao diện
+     */
     public OrderResponse toResponse(Order order, OrderTotals totals) {
         if (order == null) {
             return null;
         }
-        OrderTotals t = totals != null ? totals : OrderTotals.EMPTY;
+        OrderTotals t = (totals != null) ? totals : OrderTotals.EMPTY;
         return new OrderResponse(
                 order.getId(),
                 order.getCustomerId(),
@@ -43,6 +58,9 @@ public class OrderMapper {
         );
     }
 
+    /**
+     * Chuyển Entity sang Response khi chưa cần tính tổng tiền
+     */
     public OrderResponse toResponse(Order order) {
         return toResponse(order, null);
     }

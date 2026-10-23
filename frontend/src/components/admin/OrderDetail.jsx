@@ -1,7 +1,7 @@
 'use client';
 import { useState } from 'react';
 import Link from 'next/link';
-import { api, dt, toInputDateTime, vnd } from '@/lib/api';
+import { api, dt, vnd } from '@/lib/api';
 import { useApi, useLookups } from '@/lib/hooks';
 import { LK, nameOf } from '@/lib/admin/resources';
 import { PAYMENT_METHODS, paymentLabel } from '@/lib/constants';
@@ -30,9 +30,10 @@ function PayDialog({ order, subtotal, onClose, onDone }) {
   const pay = async (e) => {
     e.preventDefault(); setBusy(true); setErr('');
     try {
-      await api('/invoices', { method: 'POST', body: { orderId: order.id, subtotal, discount: disc, total, paymentMethod: method, paidAt: toInputDateTime() + ':00' } });
-      await api(`/orders/${order.id}/status`, { method: 'PATCH', body: { status: 'PAID' } });
-      await releaseTable(order.tableId);
+      await api('/invoices/checkout', {
+        method: 'POST',
+        body: { orderId: order.id, discount: disc, paymentMethod: method },
+      });
       toast('Đã thanh toán và tạo hóa đơn');
       onDone();
     } catch (ex) { setErr(ex.message); setBusy(false); }
