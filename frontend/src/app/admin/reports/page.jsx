@@ -293,11 +293,6 @@ export default function ReportsPage() {
       {/* TAB 4: KIỂM TRA MÓN HẾT HÀNG THEO KHO */}
       {tab === 'stockStatus' && (
         <div className="rep-content">
-          <div className="adm-alert info" style={{ marginBottom: 16 }}>
-            💡 Hệ thống đối chiếu tự động giữa <strong>Công thức món (Recipe)</strong> và <strong>Tồn kho nguyên liệu (Ingredient)</strong>.
-            Bấm nút <strong>"⚡ Đồng bộ món hết hàng"</strong> để hệ thống tự động tắt trạng thái bán đối với các món đang thiếu nguyên liệu.
-          </div>
-
           <div className="adm-card adm-section">
             <h3 style={{ marginBottom: 12 }}>Tình trạng nguyên liệu của thực đơn</h3>
             <div className="adm-table-wrap">

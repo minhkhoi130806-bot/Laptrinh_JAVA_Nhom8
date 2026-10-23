@@ -1,4 +1,5 @@
 'use client';
+
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { api, toInputDateTime, vnd } from '@/lib/api';
@@ -58,18 +59,36 @@ export default function ReceiptForm() {
       {ready && (
         <form onSubmit={submit} className="adm-card adm-form-card adm-section">
           <div className="adm-form-grid">
-            <label className="adm-field"><span className="adm-label">Nhà cung cấp <span className="adm-req">*</span></span>
+            <label className="adm-field">
+              <span className="adm-label">Nhà cung cấp <span className="adm-req">*</span></span>
               <select className="adm-input" required value={head.supplierId} onChange={(e) => setHead({ ...head, supplierId: e.target.value })}>
-                <option value="">— Chọn —</option>{lk.suppliers.opts.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-              </select></label>
-            <label className="adm-field"><span className="adm-label">Người lập phiếu</span>
+                <option value="">— Chọn —</option>
+                {lk.suppliers.opts.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+              </select>
+            </label>
+
+            <label className="adm-field">
+              <span className="adm-label">Người lập phiếu (Nhân viên)</span>
               <select className="adm-input" value={head.employeeId} onChange={(e) => setHead({ ...head, employeeId: e.target.value })}>
-                <option value="">— Không chọn —</option>{lk.employees.opts.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-              </select></label>
-            <label className="adm-field"><span className="adm-label">Ngày nhập</span>
-              <input className="adm-input" type="datetime-local" value={head.receiptDate} onChange={(e) => setHead({ ...head, receiptDate: e.target.value })} /></label>
-            <label className="adm-field"><span className="adm-label">Ghi chú</span>
-              <input className="adm-input" value={head.note} onChange={(e) => setHead({ ...head, note: e.target.value })} /></label>
+                <option value="">— Không chọn —</option>
+                {lk.employees.opts.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+              </select>
+            </label>
+
+            <label className="adm-field">
+              <span className="adm-label">Ngày nhập</span>
+              <input className="adm-input" type="datetime-local" value={head.receiptDate} onChange={(e) => setHead({ ...head, receiptDate: e.target.value })} />
+            </label>
+
+            <label className="adm-field">
+              <span className="adm-label">Ghi chú</span>
+              <input
+                className="adm-input"
+                placeholder="Ghi chú thêm hoặc số hóa đơn..."
+                value={head.note}
+                onChange={(e) => setHead({ ...head, note: e.target.value })}
+              />
+            </label>
           </div>
 
           {lowStockList.length > 0 && (
@@ -123,7 +142,7 @@ export default function ReceiptForm() {
           <button type="button" className="adm-btn ghost sm" onClick={() => setLines((ls) => [...ls, emptyLine()])}>＋ Thêm dòng</button>
 
           <div className="adm-sum"><div className="adm-grand"><span>Tổng tiền phiếu</span><span>{vnd(total)}</span></div></div>
-          <div className="adm-alert info">Sau khi lưu, phiếu nhập không sửa/xóa được; tồn kho nguyên liệu được cộng ngay.</div>
+
           {err && <div className="adm-alert">{err}</div>}
           <div className="adm-form-f">
             <button type="button" className="adm-btn ghost" onClick={() => router.push('/admin/receipts')}>Hủy</button>
