@@ -1,6 +1,7 @@
 import './globals.css';
+import './shop.css';
 
-export const metadata = { title: 'Quản lý nhà hàng – Nhóm 8', description: 'Frontend Next.js cho hệ thống quản lý nhà hàng' };
+export const metadata = { title: 'Han Seoul | Korean Dining', description: 'Khám phá hương vị Hàn Quốc và đặt bàn tại Han Seoul.' };
 
 export default function RootLayout({ children }) {
   return (

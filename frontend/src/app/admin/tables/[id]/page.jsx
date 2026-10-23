@@ -1,7 +1,7 @@
 'use client';
 import { useParams } from 'next/navigation';
-import ResourceForm from '@/components/admin/ResourceForm';
-import TableReservations from '@/components/admin/TableReservations';
+import ResourceForm from '@/components/admin/PhucResourceForm';
+import TableReservations from '@/components/admin/PhucTableReservations';
 import { tables } from '@/lib/admin/resources';
 
 // Chi tiết bàn: sửa thông tin + xem các lượt đặt của bàn

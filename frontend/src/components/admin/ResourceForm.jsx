@@ -1,8 +1,7 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { api, toInputDateTime } from '@/lib/api';
-import { useApi, useLookups } from '@/lib/hooks';
 import PageHeader from './PageHeader';
 import StateBox from './StateBox';
 import Field from './Field';
@@ -89,8 +88,59 @@ export default function ResourceForm({ config: c, id, extra }) {
   const router = useRouter();
   const toast = useToast();
   const confirm = useConfirm();
-  const { data: record, error, loading, reload } = useApi(isNew ? null : `${c.endpoint}/${id}`);
-  const { lk, ready, error: lkError } = useLookups(c.lookups);
+  const [record, setRecord] = useState(null);
+  const [lk, setLk] = useState({});
+  const [loading, setLoading] = useState(!isNew);
+  const [ready, setReady] = useState(false);
+  const [error, setError] = useState('');
+  const [lkError, setLkError] = useState('');
+
+  // Lấy dữ liệu chi tiết và dữ liệu phụ để hiển thị các ô chọn.
+  const reload = async () => {
+    try {
+      setError('');
+      setLkError('');
+      setLoading(!isNew);
+
+      const lookups = c.lookups || {};
+      const requests = [];
+      if (!isNew) requests.push(api(`${c.endpoint}/${id}`));
+      requests.push(...Object.values(lookups).map((item) => api(item.endpoint)));
+      const results = await Promise.all(requests);
+
+      let index = 0;
+      if (!isNew) {
+        setRecord(results[0]);
+        index = 1;
+      }
+
+      const lookupData = {};
+      Object.keys(lookups).forEach((key, lookupIndex) => {
+        const rows = results[index + lookupIndex];
+        const options = rows
+          .filter((row) => !row.deleted)
+          .map((row) => ({ value: row.id, label: lookups[key].label(row) }));
+        lookupData[key] = {
+          rows,
+          opts: options,
+          map: Object.fromEntries(rows.map((row) => [row.id, lookups[key].label(row)])),
+        };
+      });
+      setLk(lookupData);
+      setReady(true);
+    } catch (err) {
+      setError(err.message || 'Không thể tải dữ liệu.');
+      setLkError(err.message || 'Không thể tải dữ liệu tra cứu.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    reload();
+    // Cấu hình và id quyết định dữ liệu của trang.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [c.endpoint, id]);
 
   const remove = async () => {
     const name = c.titleOf(record);

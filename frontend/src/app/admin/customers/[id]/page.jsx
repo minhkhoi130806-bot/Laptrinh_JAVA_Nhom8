@@ -1,7 +1,7 @@
 'use client';
 import { useParams } from 'next/navigation';
-import ResourceForm from '@/components/admin/ResourceForm';
-import CustomerOrders from '@/components/admin/CustomerOrders';
+import ResourceForm from '@/components/admin/PhucResourceForm';
+import CustomerOrders from '@/components/admin/PhucCustomerOrders';
 import { customers } from '@/lib/admin/resources';
 
 // Chi tiết khách hàng: sửa thông tin + xem các đơn khách đã mua
