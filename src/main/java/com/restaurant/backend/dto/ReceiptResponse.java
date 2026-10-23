@@ -15,4 +15,17 @@ public record ReceiptResponse(
         String note,
         List<ReceiptDetailResponse> details
 ) {
+    public record SupplierCostSummary(
+            Long supplierId,
+            String supplierName,
+            long receiptCount,
+            BigDecimal totalCost
+    ) {}
+
+    public record PurchaseReportResponse(
+            BigDecimal totalSpent,
+            long totalReceipts,
+            List<SupplierCostSummary> bySupplier,
+            List<ReceiptResponse> recentReceipts
+    ) {}
 }

@@ -2,6 +2,7 @@ package com.restaurant.backend.service.Impl;
 
 import com.restaurant.backend.dto.IngredientRequest;
 import com.restaurant.backend.dto.IngredientResponse;
+import com.restaurant.backend.dto.IngredientResponse.InventoryReportResponse;
 import com.restaurant.backend.entity.Ingredient;
 import com.restaurant.backend.exception.BadRequestException;
 import com.restaurant.backend.exception.NotFoundException;
@@ -68,6 +69,24 @@ public class IngredientServiceImpl implements IngredientService {
     public void delete(Long id) {
         ingredientRepository.delete(find(id));
         ingredientRepository.flush();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public InventoryReportResponse getInventoryReport() {
+        List<Ingredient> all = ingredientRepository.findAll();
+        long total = all.size();
+        long low = all.stream().filter(i -> {
+            BigDecimal qty = i.getStockQty() != null ? i.getStockQty() : BigDecimal.ZERO;
+            BigDecimal min = i.getMinStock() != null ? i.getMinStock() : BigDecimal.ZERO;
+            return qty.compareTo(min) <= 0 && qty.compareTo(BigDecimal.ZERO) > 0;
+        }).count();
+        long out = all.stream().filter(i -> {
+            BigDecimal qty = i.getStockQty() != null ? i.getStockQty() : BigDecimal.ZERO;
+            return qty.compareTo(BigDecimal.ZERO) <= 0;
+        }).count();
+        List<IngredientResponse> responses = all.stream().map(mapper::toResponse).toList();
+        return new InventoryReportResponse(total, low, out, responses);
     }
 
     private Ingredient find(Long id) {

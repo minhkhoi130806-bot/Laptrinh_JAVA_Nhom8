@@ -3,6 +3,8 @@ package com.restaurant.backend.service;
 import com.restaurant.backend.dto.ListScope;
 import com.restaurant.backend.dto.MenuItemRequest;
 import com.restaurant.backend.dto.MenuItemResponse;
+import com.restaurant.backend.dto.MenuItemResponse.BestSellerResponse;
+import com.restaurant.backend.dto.MenuItemResponse.MenuItemStockStatus;
 import com.restaurant.backend.dto.RecipeLineRequest;
 import com.restaurant.backend.dto.RecipeLineResponse;
 
@@ -20,4 +22,9 @@ public interface MenuItemService {
 
     List<RecipeLineResponse> getRecipe(Long menuItemId);
     List<RecipeLineResponse> saveRecipe(Long menuItemId, List<RecipeLineRequest> lines);
+
+    // Tuần 4: Báo cáo món bán chạy, kiểm tra và đồng bộ trạng thái hết hàng theo kho
+    List<BestSellerResponse> getBestSellers();
+    List<MenuItemStockStatus> getStockStatus();
+    int syncOutOfStockStatus();
 }

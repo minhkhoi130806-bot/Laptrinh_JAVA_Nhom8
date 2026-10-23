@@ -2,6 +2,7 @@ package com.restaurant.backend.service;
 
 import com.restaurant.backend.dto.IngredientRequest;
 import com.restaurant.backend.dto.IngredientResponse;
+import com.restaurant.backend.dto.IngredientResponse.InventoryReportResponse;
 
 import java.util.List;
 
@@ -11,4 +12,5 @@ public interface IngredientService {
     IngredientResponse getById(Long id);
     IngredientResponse update(Long id, IngredientRequest request);
     void delete(Long id);
+    InventoryReportResponse getInventoryReport();
 }

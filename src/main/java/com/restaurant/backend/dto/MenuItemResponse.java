@@ -4,6 +4,7 @@ import com.restaurant.backend.entity.Spicelevel;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 
 public record MenuItemResponse(
         Long id,
@@ -19,4 +20,22 @@ public record MenuItemResponse(
         Boolean deleted,
         LocalDateTime deletedAt
 ) {
+    public record BestSellerResponse(
+            Long menuItemId,
+            String nameVi,
+            String nameKo,
+            BigDecimal price,
+            String categoryName,
+            Long totalQuantitySold,
+            BigDecimal totalRevenue
+    ) {}
+
+    public record MenuItemStockStatus(
+            Long menuItemId,
+            String nameVi,
+            String nameKo,
+            Boolean currentlyAvailable,
+            Boolean hasEnoughStock,
+            List<String> missingIngredients
+    ) {}
 }

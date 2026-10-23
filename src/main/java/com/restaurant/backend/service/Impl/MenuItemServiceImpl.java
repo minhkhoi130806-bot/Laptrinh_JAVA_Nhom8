@@ -3,6 +3,8 @@ package com.restaurant.backend.service.Impl;
 import com.restaurant.backend.dto.ListScope;
 import com.restaurant.backend.dto.MenuItemRequest;
 import com.restaurant.backend.dto.MenuItemResponse;
+import com.restaurant.backend.dto.MenuItemResponse.BestSellerResponse;
+import com.restaurant.backend.dto.MenuItemResponse.MenuItemStockStatus;
 import com.restaurant.backend.dto.RecipeLineRequest;
 import com.restaurant.backend.dto.RecipeLineResponse;
 import com.restaurant.backend.entity.Category;
@@ -17,6 +19,7 @@ import com.restaurant.backend.mapper.MenuItemMapper;
 import com.restaurant.backend.repository.CategoryRepository;
 import com.restaurant.backend.repository.IngredientRepository;
 import com.restaurant.backend.repository.MenuItemRepository;
+import com.restaurant.backend.repository.OrderItemRepository;
 import com.restaurant.backend.repository.RecipeRepository;
 import com.restaurant.backend.service.FileStorageService;
 import com.restaurant.backend.service.MenuItemService;
@@ -25,10 +28,13 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 public class MenuItemServiceImpl implements MenuItemService {
@@ -37,6 +43,7 @@ public class MenuItemServiceImpl implements MenuItemService {
     private final CategoryRepository categoryRepository;
     private final IngredientRepository ingredientRepository;
     private final RecipeRepository recipeRepository;
+    private final OrderItemRepository orderItemRepository;
     private final MenuItemMapper mapper;
     private final FileStorageService storageService;
 
@@ -44,12 +51,14 @@ public class MenuItemServiceImpl implements MenuItemService {
                                CategoryRepository categoryRepository,
                                IngredientRepository ingredientRepository,
                                RecipeRepository recipeRepository,
+                               OrderItemRepository orderItemRepository,
                                MenuItemMapper mapper,
                                FileStorageService storageService) {
         this.menuItemRepository = menuItemRepository;
         this.categoryRepository = categoryRepository;
         this.ingredientRepository = ingredientRepository;
         this.recipeRepository = recipeRepository;
+        this.orderItemRepository = orderItemRepository;
         this.mapper = mapper;
         this.storageService = storageService;
     }
@@ -60,24 +69,26 @@ public class MenuItemServiceImpl implements MenuItemService {
         validate(request);
         Menuitem item = new Menuitem();
         apply(item, request);
-        item.setDeleted(false);
-        item.setDeletedAt(null);
         return mapper.toResponse(menuItemRepository.save(item));
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<MenuItemResponse> getAll(ListScope scope, Long categoryId) {
-        ListScope s = scope == null ? ListScope.ACTIVE : scope;
+        ListScope effectiveScope = scope == null ? ListScope.ACTIVE : scope;
         return menuItemRepository.findAllWithCategory().stream()
-                .filter(m -> switch (s) {
-                    case ACTIVE -> !Boolean.TRUE.equals(m.getDeleted());
-                    case TRASH -> Boolean.TRUE.equals(m.getDeleted());
-                    case ALL -> true;
-                })
-                .filter(m -> categoryId == null || m.getCategory().getId().equals(categoryId))
+                .filter(m -> matchesScope(effectiveScope, m.getDeleted()))
+                .filter(m -> categoryId == null || Objects.equals(m.getCategory().getId(), categoryId))
                 .map(mapper::toResponse)
                 .toList();
+    }
+
+    private static boolean matchesScope(ListScope scope, Boolean deleted) {
+        return switch (scope) {
+            case ACTIVE -> !Boolean.TRUE.equals(deleted);
+            case TRASH -> Boolean.TRUE.equals(deleted);
+            case ALL -> true;
+        };
     }
 
     @Override
@@ -90,12 +101,12 @@ public class MenuItemServiceImpl implements MenuItemService {
     @Transactional
     public MenuItemResponse update(Long id, MenuItemRequest request) {
         validate(request);
-        Menuitem existing = find(id);
-        String oldImage = existing.getImageUrl();
-        apply(existing, request);
-        Menuitem saved = menuItemRepository.save(existing);
-        // Đổi / gỡ ảnh thì dọn file ảnh cũ
-        if (oldImage != null && !Objects.equals(oldImage, saved.getImageUrl())) {
+        Menuitem item = find(id);
+        String oldImage = item.getImageUrl();
+        apply(item, request);
+        Menuitem saved = menuItemRepository.save(item);
+
+        if (oldImage != null && !oldImage.equals(saved.getImageUrl())) {
             storageService.deleteQuietly(oldImage);
         }
         return mapper.toResponse(saved);
@@ -104,43 +115,45 @@ public class MenuItemServiceImpl implements MenuItemService {
     @Override
     @Transactional
     public MenuItemResponse setAvailable(Long id, boolean available) {
-        Menuitem existing = find(id);
-        existing.setAvailable(available);
-        return mapper.toResponse(menuItemRepository.save(existing));
+        Menuitem item = find(id);
+        item.setAvailable(available);
+        return mapper.toResponse(menuItemRepository.save(item));
     }
 
     @Override
     @Transactional
     public void delete(Long id) {
-        Menuitem existing = find(id);
-        existing.setDeleted(true);
-        existing.setDeletedAt(LocalDateTime.now());
-        existing.setAvailable(false); // món trong thùng rác không được bán
-        menuItemRepository.save(existing);
+        Menuitem item = find(id);
+        if (Boolean.TRUE.equals(item.getDeleted())) return;
+        item.setDeleted(true);
+        item.setDeletedAt(LocalDateTime.now());
+        item.setAvailable(false);
+        menuItemRepository.save(item);
     }
 
     @Override
     @Transactional
     public MenuItemResponse restore(Long id) {
-        Menuitem existing = find(id);
-        existing.setDeleted(false);
-        existing.setDeletedAt(null);
-        return mapper.toResponse(menuItemRepository.save(existing));
+        Menuitem item = find(id);
+        if (!Boolean.TRUE.equals(item.getDeleted())) return mapper.toResponse(item);
+        item.setDeleted(false);
+        item.setDeletedAt(null);
+        return mapper.toResponse(menuItemRepository.save(item));
     }
 
     @Override
     @Transactional
     public void purge(Long id) {
-        Menuitem existing = find(id);
-        if (!Boolean.TRUE.equals(existing.getDeleted())) {
-            throw new BadRequestException("Chỉ xóa vĩnh viễn được món đang trong thùng rác");
+        Menuitem item = find(id);
+        if (!Boolean.TRUE.equals(item.getDeleted())) {
+            throw new BadRequestException("Chỉ có thể xóa vĩnh viễn món đang nằm trong thùng rác");
         }
         recipeRepository.deleteByMenuItem(id);
-        menuItemRepository.delete(existing);
-        storageService.deleteQuietly(existing.getImageUrl());
+        String img = item.getImageUrl();
+        menuItemRepository.delete(item);
+        menuItemRepository.flush();
+        storageService.deleteQuietly(img);
     }
-
-    // ---------- Công thức ----------
 
     @Override
     @Transactional(readOnly = true)
@@ -149,23 +162,22 @@ public class MenuItemServiceImpl implements MenuItemService {
         return recipeRepository.findByMenuItem(menuItemId).stream().map(mapper::toResponse).toList();
     }
 
-    // Thay toàn bộ công thức của món bằng danh sách mới
     @Override
     @Transactional
     public List<RecipeLineResponse> saveRecipe(Long menuItemId, List<RecipeLineRequest> lines) {
         Menuitem item = find(menuItemId);
-        List<RecipeLineRequest> input = lines == null ? List.of() : lines;
+        List<RecipeLineRequest> input = lines == null ? List.of() : lines.stream()
+                .filter(Objects::nonNull)
+                .filter(l -> l.ingredientId() != null)
+                .toList();
 
         Set<Long> seen = new HashSet<>();
         for (RecipeLineRequest line : input) {
-            if (line.ingredientId() == null) {
-                throw new BadRequestException("Thiếu nguyên liệu trong công thức");
+            if (!seen.add(line.ingredientId())) {
+                throw new BadRequestException("Mỗi nguyên liệu chỉ xuất hiện 1 lần trong công thức");
             }
             if (line.quantityNeeded() == null || line.quantityNeeded().compareTo(BigDecimal.ZERO) <= 0) {
                 throw new BadRequestException("Định lượng nguyên liệu phải lớn hơn 0");
-            }
-            if (!seen.add(line.ingredientId())) {
-                throw new BadRequestException("Một nguyên liệu chỉ xuất hiện 1 lần trong công thức");
             }
         }
 
@@ -182,6 +194,100 @@ public class MenuItemServiceImpl implements MenuItemService {
         }
         recipeRepository.flush();
         return recipeRepository.findByMenuItem(menuItemId).stream().map(mapper::toResponse).toList();
+    }
+
+    // ---------- Tuần 4: Báo cáo & Đồng bộ trạng thái hết hàng ----------
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<BestSellerResponse> getBestSellers() {
+        List<Object[]> rows = orderItemRepository.findBestSellingMenuItems();
+        Map<Long, Menuitem> itemMap = menuItemRepository.findAllWithCategory().stream()
+                .collect(Collectors.toMap(Menuitem::getId, m -> m));
+
+        return rows.stream().map(row -> {
+            Long menuItemId = ((Number) row[0]).longValue();
+            Long qty = ((Number) row[1]).longValue();
+            BigDecimal rev = row[2] != null ? new BigDecimal(row[2].toString()) : BigDecimal.ZERO;
+            Menuitem item = itemMap.get(menuItemId);
+            String nameVi = item != null ? item.getNameVi() : "Món #" + menuItemId;
+            String nameKo = item != null ? item.getNameKo() : null;
+            BigDecimal price = item != null ? item.getPrice() : BigDecimal.ZERO;
+            String catName = (item != null && item.getCategory() != null) ? item.getCategory().getName() : "—";
+            return new BestSellerResponse(menuItemId, nameVi, nameKo, price, catName, qty, rev);
+        }).toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<MenuItemStockStatus> getStockStatus() {
+        List<Menuitem> items = menuItemRepository.findAllWithCategory();
+        List<MenuItemStockStatus> results = new ArrayList<>();
+
+        for (Menuitem item : items) {
+            if (Boolean.TRUE.equals(item.getDeleted())) continue;
+            List<Recipe> recipes = recipeRepository.findByMenuItem(item.getId());
+            List<String> missing = new ArrayList<>();
+            boolean enough = true;
+
+            for (Recipe r : recipes) {
+                Ingredient ing = r.getIngredient();
+                BigDecimal stock = ing.getStockQty() != null ? ing.getStockQty() : BigDecimal.ZERO;
+                BigDecimal needed = r.getQuantityNeeded() != null ? r.getQuantityNeeded() : BigDecimal.ZERO;
+                if (stock.compareTo(needed) < 0) {
+                    enough = false;
+                    missing.add(ing.getName() + " (còn " + stock + " / cần " + needed + " " + ing.getUnit() + ")");
+                }
+            }
+
+            results.add(new MenuItemStockStatus(
+                    item.getId(),
+                    item.getNameVi(),
+                    item.getNameKo(),
+                    item.getAvailable(),
+                    enough,
+                    missing
+            ));
+        }
+        return results;
+    }
+
+    @Override
+    @Transactional
+    public int syncOutOfStockStatus() {
+        List<Menuitem> items = menuItemRepository.findAllWithCategory();
+        int updatedCount = 0;
+
+        for (Menuitem item : items) {
+            if (Boolean.TRUE.equals(item.getDeleted())) continue;
+            List<Recipe> recipes = recipeRepository.findByMenuItem(item.getId());
+            if (recipes.isEmpty()) continue; // Món chưa có công thức thì không tự động đổi
+
+            boolean enough = true;
+            for (Recipe r : recipes) {
+                Ingredient ing = r.getIngredient();
+                BigDecimal stock = ing.getStockQty() != null ? ing.getStockQty() : BigDecimal.ZERO;
+                BigDecimal needed = r.getQuantityNeeded() != null ? r.getQuantityNeeded() : BigDecimal.ZERO;
+                if (stock.compareTo(needed) < 0) {
+                    enough = false;
+                    break;
+                }
+            }
+
+            // Nếu thiếu nguyên liệu mà món đang bật bán -> chuyển sang tạm hết hàng
+            if (!enough && Boolean.TRUE.equals(item.getAvailable())) {
+                item.setAvailable(false);
+                menuItemRepository.save(item);
+                updatedCount++;
+            }
+            // Nếu đủ nguyên liệu mà món đang tắt bán -> tự động mở lại
+            else if (enough && Boolean.FALSE.equals(item.getAvailable())) {
+                item.setAvailable(true);
+                menuItemRepository.save(item);
+                updatedCount++;
+            }
+        }
+        return updatedCount;
     }
 
     // ---------- helpers ----------
