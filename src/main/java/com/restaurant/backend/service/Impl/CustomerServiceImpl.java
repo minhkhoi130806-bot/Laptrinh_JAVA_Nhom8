@@ -5,6 +5,7 @@ import com.restaurant.backend.entity.Customer;
 import com.restaurant.backend.exception.BadRequestException;
 import com.restaurant.backend.exception.NotFoundException;
 import com.restaurant.backend.repository.CustomerRepository;
+import com.restaurant.backend.repository.UserAccountRepository;
 import com.restaurant.backend.service.CustomerService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -16,9 +17,13 @@ import java.util.List;
 public class CustomerServiceImpl implements CustomerService {
 
     private final CustomerRepository customerRepository;
+    private final UserAccountRepository userAccountRepository;
 
-    public CustomerServiceImpl(CustomerRepository customerRepository) {
+    public CustomerServiceImpl(
+            CustomerRepository customerRepository,
+            UserAccountRepository userAccountRepository) {
         this.customerRepository = customerRepository;
+        this.userAccountRepository = userAccountRepository;
     }
 
     @Override
@@ -94,6 +99,7 @@ public class CustomerServiceImpl implements CustomerService {
         if (!Boolean.TRUE.equals(existing.getDeleted())) {
             throw new BadRequestException("Chỉ xóa vĩnh viễn được khách hàng đang trong thùng rác");
         }
+        userAccountRepository.findByCustomerId(id).ifPresent(userAccountRepository::delete);
         customerRepository.delete(existing);
     }
 

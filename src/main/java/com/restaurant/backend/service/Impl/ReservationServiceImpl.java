@@ -173,7 +173,8 @@ public class ReservationServiceImpl implements ReservationService {
         return tableRepository.findByDeleted(false).stream()
                 .filter(t -> guests == null || t.getCapacity() >= guests)
                 .filter(t -> !hasConflict(t.getId(), at, ignoreReservationId))
-                .sorted(Comparator.comparing(DiningTable::getCapacity).thenComparing(DiningTable::getTableCode))
+                .sorted(Comparator.comparing((DiningTable t) -> t.getCapacity())
+        .thenComparing(t -> t.getTableCode()))
                 .toList();
     }
 

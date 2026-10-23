@@ -4,6 +4,7 @@ import com.restaurant.backend.entity.Employee;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
+import java.util.Optional;
 
 public interface EmployeeRepository extends JpaRepository<Employee, Long> {
     // Lọc theo thùng rác: false = đang dùng, true = đã xóa mềm
@@ -12,4 +13,7 @@ public interface EmployeeRepository extends JpaRepository<Employee, Long> {
     boolean existsByUsername(String username);
 
     boolean existsByUsernameAndIdNot(String username, Long id);
+
+    // Tìm nhân viên theo tên tài khoản (username) - phục vụ đăng nhập xác thực
+    Optional<Employee> findByUsername(String username);
 }
