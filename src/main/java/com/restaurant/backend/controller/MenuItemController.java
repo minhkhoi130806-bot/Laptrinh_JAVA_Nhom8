@@ -3,6 +3,8 @@ package com.restaurant.backend.controller;
 import com.restaurant.backend.dto.ListScope;
 import com.restaurant.backend.dto.MenuItemRequest;
 import com.restaurant.backend.dto.MenuItemResponse;
+import com.restaurant.backend.dto.MenuItemResponse.BestSellerResponse;
+import com.restaurant.backend.dto.MenuItemResponse.MenuItemStockStatus;
 import com.restaurant.backend.dto.RecipeLineRequest;
 import com.restaurant.backend.dto.RecipeLineResponse;
 import com.restaurant.backend.service.MenuItemService;
@@ -10,6 +12,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/menu-items")
@@ -32,6 +35,25 @@ public class MenuItemController {
     public List<MenuItemResponse> getAll(@RequestParam(defaultValue = "ACTIVE") ListScope scope,
                                          @RequestParam(required = false) Long categoryId) {
         return menuItemService.getAll(scope, categoryId);
+    }
+
+    // Tuần 4: Top món bán chạy
+    @GetMapping("/best-sellers")
+    public List<BestSellerResponse> getBestSellers() {
+        return menuItemService.getBestSellers();
+    }
+
+    // Tuần 4: Kiểm tra trạng thái tồn kho của món theo công thức
+    @GetMapping("/stock-status")
+    public List<MenuItemStockStatus> getStockStatus() {
+        return menuItemService.getStockStatus();
+    }
+
+    // Tuần 4: Tự động đánh dấu món hết hàng dựa theo nguyên liệu kho
+    @PostMapping("/sync-out-of-stock")
+    public Map<String, Object> syncOutOfStock() {
+        int updated = menuItemService.syncOutOfStockStatus();
+        return Map.of("updatedCount", updated, "message", "Đã đồng bộ trạng thái " + updated + " món ăn theo kho.");
     }
 
     @GetMapping("/{id}")

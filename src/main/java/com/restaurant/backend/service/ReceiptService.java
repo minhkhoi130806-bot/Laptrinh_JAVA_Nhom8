@@ -2,6 +2,7 @@ package com.restaurant.backend.service;
 
 import com.restaurant.backend.dto.ReceiptRequest;
 import com.restaurant.backend.dto.ReceiptResponse;
+import com.restaurant.backend.dto.ReceiptResponse.PurchaseReportResponse;
 
 import java.util.List;
 
@@ -10,4 +11,5 @@ public interface ReceiptService {
     ReceiptResponse create(ReceiptRequest request);
     List<ReceiptResponse> getAll();
     ReceiptResponse getById(Long id);
+    PurchaseReportResponse getPurchaseReport();
 }

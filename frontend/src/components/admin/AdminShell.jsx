@@ -26,6 +26,7 @@ const NAV = [
       { href: '/admin/ingredients', icon: '🥬', label: 'Nguyên liệu' },
       { href: '/admin/suppliers', icon: '🚚', label: 'Nhà cung cấp' },
       { href: '/admin/receipts', icon: '📥', label: 'Phiếu nhập' },
+      { href: '/admin/reports', icon: '📈', label: 'Báo cáo kho & món' },
     ],
   },
   {

@@ -21,4 +21,9 @@ public interface OrderItemRepository extends JpaRepository<OrderItem, OrderItemI
     @Query("select oi.id.orderId, sum(oi.quantity * oi.unitPrice), sum(oi.quantity) "
             + "from OrderItem oi where oi.id.orderId in :orderIds group by oi.id.orderId")
     List<Object[]> aggregateByOrderIds(@Param("orderIds") Collection<Integer> orderIds);
+
+    // Thống kê món bán chạy: [menuItemId, sum(quantity), sum(quantity * unitPrice)]
+    @Query("select oi.id.menuItemId, sum(oi.quantity), sum(oi.quantity * oi.unitPrice) "
+            + "from OrderItem oi group by oi.id.menuItemId order by sum(oi.quantity) desc")
+    List<Object[]> findBestSellingMenuItems();
 }

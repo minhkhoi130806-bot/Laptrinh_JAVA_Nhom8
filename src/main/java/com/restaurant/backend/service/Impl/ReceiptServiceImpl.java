@@ -3,6 +3,8 @@ package com.restaurant.backend.service.Impl;
 import com.restaurant.backend.dto.ReceiptDetailRequest;
 import com.restaurant.backend.dto.ReceiptRequest;
 import com.restaurant.backend.dto.ReceiptResponse;
+import com.restaurant.backend.dto.ReceiptResponse.PurchaseReportResponse;
+import com.restaurant.backend.dto.ReceiptResponse.SupplierCostSummary;
 import com.restaurant.backend.entity.Employee;
 import com.restaurant.backend.entity.Ingredient;
 import com.restaurant.backend.entity.PurchaseReceipt;
@@ -117,5 +119,24 @@ public class ReceiptServiceImpl implements ReceiptService {
     public ReceiptResponse getById(Long id) {
         return mapper.toResponse(receiptRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy phiếu nhập id = " + id)));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PurchaseReportResponse getPurchaseReport() {
+        List<PurchaseReceipt> all = receiptRepository.findAllByOrderByReceiptDateDescIdDesc();
+        BigDecimal totalSpent = all.stream().map(PurchaseReceipt::getTotalAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
+        long totalCount = all.size();
+
+        List<Object[]> supplierAgg = receiptRepository.aggregateCostBySupplier();
+        List<SupplierCostSummary> bySupplier = supplierAgg.stream().map(row -> new SupplierCostSummary(
+                ((Number) row[0]).longValue(),
+                (String) row[1],
+                ((Number) row[2]).longValue(),
+                (BigDecimal) row[3]
+        )).toList();
+
+        List<ReceiptResponse> recent = all.stream().limit(10).map(mapper::toResponse).toList();
+        return new PurchaseReportResponse(totalSpent, totalCount, bySupplier, recent);
     }
 }

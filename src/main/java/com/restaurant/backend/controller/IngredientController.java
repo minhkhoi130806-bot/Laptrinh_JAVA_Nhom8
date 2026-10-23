@@ -2,6 +2,7 @@ package com.restaurant.backend.controller;
 
 import com.restaurant.backend.dto.IngredientRequest;
 import com.restaurant.backend.dto.IngredientResponse;
+import com.restaurant.backend.dto.IngredientResponse.InventoryReportResponse;
 import com.restaurant.backend.service.IngredientService;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
@@ -27,6 +28,11 @@ public class IngredientController {
     @GetMapping
     public List<IngredientResponse> getAll() {
         return ingredientService.getAll();
+    }
+
+    @GetMapping("/report")
+    public InventoryReportResponse getReport() {
+        return ingredientService.getInventoryReport();
     }
 
     @GetMapping("/{id}")
