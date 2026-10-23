@@ -1,9 +1,8 @@
 'use client';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
-import { useApi, useLookups } from '@/lib/hooks';
 import PageHeader from './PageHeader';
 import DataTable from './DataTable';
 import StateBox from './StateBox';
@@ -18,8 +17,52 @@ export default function ResourceList({ config: c }) {
   const router = useRouter();
   const toast = useToast();
   const confirm = useConfirm();
-  const { data, error, loading, reload } = useApi(c.endpoint);
-  const { lk, ready, error: lkError, reload: reloadLk } = useLookups(c.lookups);
+  const [data, setData] = useState(null);
+  const [lk, setLk] = useState({});
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [lkError, setLkError] = useState('');
+
+  // Tải dữ liệu trực tiếp trong trang, không thông qua custom hook.
+  const reload = async () => {
+    try {
+      setLoading(true);
+      setError('');
+      setLkError('');
+
+      const lookups = c.lookups || {};
+      const results = await Promise.all([
+        api(c.endpoint),
+        ...Object.values(lookups).map((item) => api(item.endpoint)),
+      ]);
+      setData(results[0]);
+
+      const lookupData = {};
+      Object.keys(lookups).forEach((key, index) => {
+        const rows = results[index + 1];
+        const options = rows
+          .filter((row) => !row.deleted)
+          .map((row) => ({ value: row.id, label: lookups[key].label(row) }));
+        lookupData[key] = {
+          rows,
+          opts: options,
+          map: Object.fromEntries(rows.map((row) => [row.id, lookups[key].label(row)])),
+        };
+      });
+      setLk(lookupData);
+    } catch (err) {
+      setError(err.message || 'Không thể tải dữ liệu.');
+      setLkError(err.message || 'Không thể tải dữ liệu tra cứu.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    reload();
+    // Cấu hình được khai báo cố định trong lib/admin/resources.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [c.endpoint]);
   const [q, setQ] = useState('');
   const [fv, setFv] = useState({});
 
@@ -65,7 +108,7 @@ export default function ResourceList({ config: c }) {
     { key: '__actions', label: '', render: (r) => buttons(r) },
   ];
 
-  const state = loading || !ready || error || lkError;
+  const state = loading || Boolean(error || lkError);
 
   return (
     <>
@@ -81,7 +124,7 @@ export default function ResourceList({ config: c }) {
         {canCreate && <Link href={`${c.base}/create`} className="adm-btn">＋ {c.createLabel || `Thêm ${c.singular}`}</Link>}
       </PageHeader>
 
-      <StateBox loading={loading || (!ready && !lkError)} error={error || lkError} onRetry={() => { reload(); reloadLk(); }} />
+      <StateBox loading={loading} error={error || lkError} onRetry={reload} />
 
       {!state && data && c.summary?.(data)}
 

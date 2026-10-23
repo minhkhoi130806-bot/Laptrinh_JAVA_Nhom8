@@ -1,5 +1,5 @@
 'use client';
-import ResourceList from '@/components/admin/ResourceList';
+import ResourceList from '@/components/admin/PhucResourceList';
 import { employees } from '@/lib/admin/resources';
 
 export default function Page() {

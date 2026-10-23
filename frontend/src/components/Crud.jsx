@@ -1,5 +1,5 @@
 'use client';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { api } from '../lib/api';
 import Modal from './Modal';
 
@@ -24,7 +24,7 @@ export default function Crud({ title, icon, endpoint, columns, fields, lookups =
   const [saving, setSaving] = useState(false);
   const [formErr, setFormErr] = useState('');
 
-  const load = useCallback(async () => {
+  const load = async () => {
     try {
       setState('loading');
       const [data, ...ls] = await Promise.all([
@@ -38,8 +38,9 @@ export default function Crud({ title, icon, endpoint, columns, fields, lookups =
       });
       setRows(data); setLk(out); setState('ok'); setError('');
     } catch (e) { setError(e.message); setState('error'); }
-  }, [endpoint]); // eslint-disable-line
-  useEffect(() => { load(); }, [load]);
+  };
+  useEffect(() => { load(); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [endpoint]);
 
   const maps = useMemo(() => Object.fromEntries(Object.entries(lk).map(([k, v]) => [k, v.map])), [lk]);
   const shown = rows.filter((r) => !q || JSON.stringify(Object.values(r)).toLowerCase().includes(q.toLowerCase())
