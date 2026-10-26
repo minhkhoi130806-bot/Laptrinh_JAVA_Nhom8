@@ -8,7 +8,6 @@ import com.restaurant.backend.entity.OrderItemId;
 import com.restaurant.backend.entity.Recipe;
 import com.restaurant.backend.exception.BadRequestException;
 import com.restaurant.backend.exception.NotFoundException;
-import com.restaurant.backend.repository.IngredientRepository;
 import com.restaurant.backend.repository.MenuItemRepository;
 import com.restaurant.backend.repository.OrderItemRepository;
 import com.restaurant.backend.repository.OrderRepository;
@@ -44,20 +43,17 @@ public class OrderItemServiceImpl implements OrderItemService {
     private final OrderRepository orderRepository;
     private final MenuItemRepository menuItemRepository;
     private final RecipeRepository recipeRepository;
-    private final IngredientRepository ingredientRepository;
 
     // Tiêm các Repository cần thiết qua Constructor
     public OrderItemServiceImpl(
             OrderItemRepository orderItemRepository,
             OrderRepository orderRepository,
             MenuItemRepository menuItemRepository,
-            RecipeRepository recipeRepository,
-            IngredientRepository ingredientRepository) {
+            RecipeRepository recipeRepository) {
         this.orderItemRepository = orderItemRepository;
         this.orderRepository = orderRepository;
         this.menuItemRepository = menuItemRepository;
         this.recipeRepository = recipeRepository;
-        this.ingredientRepository = ingredientRepository;
     }
 
     /**
@@ -96,7 +92,7 @@ public class OrderItemServiceImpl implements OrderItemService {
 
         // Bước 1.2.1 (Tuần 4 - Khôi): Chặn gọi món khi món đang tạm ngừng bán (available = false)
         if (Boolean.FALSE.equals(monAn.getAvailable())) {
-            throw new BadRequestException("Món '" + monAn.getName() + "' hiện đang tạm ngưng phục vụ, không thể gọi món!");
+            throw new BadRequestException("Món '" + monAn.getNameVi() + "' hiện đang tạm ngưng phục vụ, không thể gọi món!");
         }
 
         // Bước 1.3: Đảm bảo số lượng gọi ít nhất là 1
@@ -126,7 +122,7 @@ public class OrderItemServiceImpl implements OrderItemService {
 
                     // Nếu tồn kho không đủ để chế biến -> Báo lỗi mã 400 (BadRequest)
                     if (tonKhoHienTai.compareTo(luongCanDung) < 0) {
-                        throw new BadRequestException("Món '" + monAn.getName() + "' không đủ nguyên liệu '" 
+                        throw new BadRequestException("Món '" + monAn.getNameVi() + "' không đủ nguyên liệu '" 
                                 + nguyenLieu.getName() + "' trong kho để chế biến (cần: " 
                                 + luongCanDung + " " + nguyenLieu.getUnit() + ", trong kho chỉ còn: " 
                                 + tonKhoHienTai + " " + nguyenLieu.getUnit() + ")");
