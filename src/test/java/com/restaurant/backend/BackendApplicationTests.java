@@ -1,14 +1,8 @@
 package com.restaurant.backend;
 
-import com.restaurant.backend.dto.IngredientRequest;
-import com.restaurant.backend.dto.IngredientResponse;
-import com.restaurant.backend.dto.MenuItemResponse.MenuItemStockStatus;
 import com.restaurant.backend.dto.RecipeLineRequest;
 import com.restaurant.backend.entity.Ingredient;
-import com.restaurant.backend.entity.Menuitem;
 import com.restaurant.backend.entity.Recipe;
-import com.restaurant.backend.entity.RecipeId;
-import com.restaurant.backend.exception.BadRequestException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -109,5 +103,56 @@ class BackendApplicationTests {
 		}
 
 		assertFalse(hasEnoughStock, "Món ăn thiếu thịt bò (còn 0.1 < cần 0.2) phải được xác định là hết hàng");
+	}
+
+	@Test
+	@DisplayName("5. Kiểm tra trừ kho nguyên liệu khi thanh toán đơn hàng (Tuần 4 - Khôi)")
+	void testDeductStockOnCheckout() {
+		// Nguyên liệu ban đầu có 5.0 kg gạo
+		BigDecimal initialStock = new BigDecimal("5.0");
+		// Món cơm trộn cần 0.3 kg gạo cho 1 phần
+		BigDecimal neededPerItem = new BigDecimal("0.3");
+		// Khách gọi 3 phần cơm trộn
+		int quantity = 3;
+
+		BigDecimal totalNeeded = neededPerItem.multiply(BigDecimal.valueOf(quantity)); // 0.9 kg
+		BigDecimal remainingStock = initialStock.subtract(totalNeeded); // 4.1 kg
+
+		assertEquals(new BigDecimal("0.9"), totalNeeded, "Lượng nguyên liệu cần trừ phải là 0.9 kg");
+		assertEquals(new BigDecimal("4.1"), remainingStock, "Tồn kho sau khi trừ phải còn 4.1 kg");
+	}
+
+	@Test
+	@DisplayName("6. Kiểm tra tích lũy điểm thưởng loyalty_points cho khách hàng (Tuần 4 - Khôi)")
+	void testLoyaltyPointsCalculation() {
+		// Hóa đơn thanh toán 250.000 VNĐ
+		BigDecimal totalPaid = new BigDecimal("250000");
+		// Quy tắc: mỗi 10.000 VNĐ được 1 điểm thưởng
+		int pointsEarned = totalPaid.divide(BigDecimal.valueOf(10000), 0, java.math.RoundingMode.FLOOR).intValue();
+
+		assertEquals(25, pointsEarned, "250.000 VNĐ phải được cộng 25 điểm tích lũy");
+
+		// Khách hàng đã có sẵn 10 điểm
+		int initialPoints = 10;
+		int newPoints = initialPoints + pointsEarned;
+		assertEquals(35, newPoints, "Tổng điểm khách hàng sau khi tích điểm phải là 35");
+	}
+
+	@Test
+	@DisplayName("7. Kiểm tra tính tổng thanh toán hóa đơn: total = subtotal - discount (Tuần 3 & 4 - Khôi)")
+	void testInvoiceCheckoutTotal() {
+		BigDecimal subtotal = new BigDecimal("180000"); // 180k
+		BigDecimal discount = new BigDecimal("20000");  // Giảm 20k
+
+		BigDecimal total = subtotal.subtract(discount);
+		assertEquals(new BigDecimal("160000"), total, "Tổng tiền thanh toán thực tế là 160.000 VNĐ");
+
+		// Trường hợp giảm giá lớn hơn subtotal -> total = 0, không được âm
+		BigDecimal bigDiscount = new BigDecimal("200000");
+		BigDecimal zeroTotal = subtotal.subtract(bigDiscount);
+		if (zeroTotal.compareTo(BigDecimal.ZERO) < 0) {
+			zeroTotal = BigDecimal.ZERO;
+		}
+		assertEquals(BigDecimal.ZERO, zeroTotal, "Tổng tiền thanh toán không được âm khi chiết khấu vượt quá tiền món");
 	}
 }

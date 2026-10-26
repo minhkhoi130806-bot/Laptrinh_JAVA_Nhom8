@@ -1,36 +1,44 @@
 package com.restaurant.backend.service.Impl;
 
 import com.restaurant.backend.dto.CheckoutRequest;
+import com.restaurant.backend.dto.RevenueReportResponse;
+import com.restaurant.backend.dto.RevenueReportResponse.DailyRevenueItem;
+import com.restaurant.backend.dto.RevenueReportResponse.PaymentMethodRevenueItem;
 import com.restaurant.backend.entity.*;
 import com.restaurant.backend.exception.BadRequestException;
 import com.restaurant.backend.exception.NotFoundException;
+import com.restaurant.backend.repository.CustomerRepository;
 import com.restaurant.backend.repository.DiningTableRepository;
+import com.restaurant.backend.repository.IngredientRepository;
 import com.restaurant.backend.repository.InvoiceRepository;
 import com.restaurant.backend.repository.OrderItemRepository;
 import com.restaurant.backend.repository.OrderRepository;
+import com.restaurant.backend.repository.RecipeRepository;
 import com.restaurant.backend.service.InvoiceService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Optional;
+import java.time.format.DateTimeFormatter;
+import java.util.*;
 
 /**
  * =========================================================================
  * LỚP THỰC THI NGHIỆP VỤ HÓA ĐƠN & THANH TOÁN (InvoiceServiceImpl)
- * Người phụ trách: Ngô Minh Khôi (Tuần 3 - Nghiệp vụ Thanh toán Hóa đơn)
+ * Người phụ trách: Ngô Minh Khôi (Tuần 3 & Tuần 4 - Nghiệp vụ Thanh toán, Trừ kho & Báo cáo)
  * 
- * Mục đích và yêu cầu cốt lõi của Tuần 3:
- * API thanh toán tạo INVOICE (@Transactional):
- * 1. Tính toán chính xác tổng tiền từ các món ăn đã gọi trong đơn (subtotal).
- * 2. Trừ chiết khấu / giảm giá nếu có (discount) để ra tổng thanh toán (total).
- * 3. Tạo bản ghi hóa đơn lưu trữ phương thức trả tiền (tiền mặt, thẻ, chuyển khoản).
- * 4. Cập nhật trạng thái của đơn hàng thành "PAID" (Đã thanh toán).
- * 5. Tự động chuyển trạng thái của bàn ăn về AVAILABLE (Bàn trống, sẵn sàng đón khách tiếp theo).
- * 6. Toàn bộ logic này được bảo vệ bởi @Transactional: Đảm bảo nếu một bước bị lỗi,
- *    toàn bộ các thay đổi trên CSDL sẽ được quay ngược lại (rollback), không làm hỏng dữ liệu.
+ * Mục đích và yêu cầu cốt lõi theo kế hoạch 5 tuần:
+ * 1. API thanh toán tạo INVOICE (@Transactional):
+ *    - Tính tổng tiền món ăn (subtotal), giảm giá (discount) và tổng thanh toán (total).
+ *    - Tạo hóa đơn lưu phương thức thanh toán, thời gian thanh toán.
+ *    - Cập nhật trạng thái đơn hàng thành "PAID".
+ *    - Giải phóng bàn ăn (chuyển trạng thái bàn về AVAILABLE).
+ *    - YÊU CẦU TUẦN 4 (Khôi): Tự động trừ kho nguyên liệu theo RECIPE trong cùng một giao dịch (@Transactional).
+ *    - YÊU CẦU TUẦN 4 (Khôi - Phúc): Tự động cộng điểm tích lũy (loyalty_points) cho khách hàng.
+ * 2. YÊU CẦU TUẦN 4 (Khôi): API báo cáo thống kê doanh thu theo ngày/tháng và theo phương thức thanh toán.
  * =========================================================================
  */
 @Service
@@ -41,22 +49,32 @@ public class InvoiceServiceImpl implements InvoiceService {
     private final OrderRepository orderRepository;
     private final OrderItemRepository orderItemRepository;
     private final DiningTableRepository diningTableRepository;
+    private final RecipeRepository recipeRepository;
+    private final IngredientRepository ingredientRepository;
+    private final CustomerRepository customerRepository;
 
-    // Tiêm các Repository vào Service qua Constructor
+    // Tiêm đầy đủ các Repository vào Service qua Constructor
     public InvoiceServiceImpl(
             InvoiceRepository invoiceRepository,
             OrderRepository orderRepository,
             OrderItemRepository orderItemRepository,
-            DiningTableRepository diningTableRepository) {
+            DiningTableRepository diningTableRepository,
+            RecipeRepository recipeRepository,
+            IngredientRepository ingredientRepository,
+            CustomerRepository customerRepository) {
         this.invoiceRepository = invoiceRepository;
         this.orderRepository = orderRepository;
         this.orderItemRepository = orderItemRepository;
         this.diningTableRepository = diningTableRepository;
+        this.recipeRepository = recipeRepository;
+        this.ingredientRepository = ingredientRepository;
+        this.customerRepository = customerRepository;
     }
 
     /**
-     * BƯỚC QUAN TRỌNG NHẤT TUẦN 3: THANH TOÁN ĐƠN HÀNG VÀ TẠO HÓA ĐƠN
-     * Sử dụng @Transactional để gộp tất cả các thao tác thành một giao dịch duy nhất.
+     * BƯỚC QUAN TRỌNG: THANH TOÁN ĐƠN HÀNG VÀ TẠO HÓA ĐƠN (@Transactional)
+     * Toàn bộ các thao tác: tạo Invoice, đổi status Order, đổi status Table,
+     * trừ kho theo Recipe và tích điểm khách hàng đều diễn ra trong cùng 1 transaction.
      */
     @Override
     @Transactional
@@ -85,7 +103,6 @@ public class InvoiceServiceImpl implements InvoiceService {
         }
 
         // Bước 5: Tính tổng số tiền các món ăn (subtotal)
-        // subtotal = Tổng của (số lượng * đơn giá) của từng món
         BigDecimal tongTienMon = BigDecimal.ZERO;
 
         for (OrderItem mon : danhSachMonAn) {
@@ -150,12 +167,170 @@ public class InvoiceServiceImpl implements InvoiceService {
             }
         }
 
-        // Bước 11: Trả về hóa đơn vừa thanh toán thành công
+        // =========================================================================
+        // Bước 11 (KẾ HOẠCH TUẦN 4 - KHÔI): TRỪ KHO NGUYÊN LIỆU THEO RECIPE KHI THANH TOÁN
+        // Cùng nằm trong transaction: Đảm bảo nguyên liệu được trừ chính xác vào kho
+        // =========================================================================
+        for (OrderItem mon : danhSachMonAn) {
+            if (mon.getId() != null && mon.getId().getMenuItemId() != null) {
+                Long maMon = Long.valueOf(mon.getId().getMenuItemId());
+                int soLuongMon = (mon.getQuantity() != null) ? mon.getQuantity() : 0;
+
+                if (soLuongMon > 0) {
+                    // Lấy toàn bộ công thức cấu thành nên món ăn này
+                    List<Recipe> congThucCuaMon = recipeRepository.findByMenuItem(maMon);
+
+                    if (congThucCuaMon != null && !congThucCuaMon.isEmpty()) {
+                        for (Recipe r : congThucCuaMon) {
+                            Ingredient nguyenLieu = r.getIngredient();
+                            if (nguyenLieu != null) {
+                                // Lượng cần trừ = định lượng 1 món * số lượng món khách gọi
+                                BigDecimal dinhLuong = (r.getQuantityNeeded() != null) ? r.getQuantityNeeded() : BigDecimal.ZERO;
+                                BigDecimal luongCanTru = dinhLuong.multiply(BigDecimal.valueOf(soLuongMon));
+
+                                // Tồn kho hiện tại
+                                BigDecimal tonHienTai = (nguyenLieu.getStockQty() != null) ? nguyenLieu.getStockQty() : BigDecimal.ZERO;
+                                BigDecimal tonMoi = tonHienTai.subtract(luongCanTru);
+
+                                // Tránh để tồn kho bị âm
+                                if (tonMoi.compareTo(BigDecimal.ZERO) < 0) {
+                                    tonMoi = BigDecimal.ZERO;
+                                }
+
+                                nguyenLieu.setStockQty(tonMoi);
+                                ingredientRepository.save(nguyenLieu);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // =========================================================================
+        // Bước 12 (KẾ HOẠCH TUẦN 4 - KHÔI): TÍCH ĐIỂM THƯỞNG CHO KHÁCH HÀNG (Loyalty points)
+        // Mỗi 10.000 VNĐ thanh toán được cộng 1 điểm tích lũy
+        // =========================================================================
+        if (donHang.getCustomerId() != null) {
+            Long maKhachHang = Long.valueOf(donHang.getCustomerId());
+            Optional<Customer> khachHangOpt = customerRepository.findById(maKhachHang);
+
+            if (khachHangOpt.isPresent()) {
+                Customer khachHang = khachHangOpt.get();
+                // Tính điểm cộng: 1 điểm cho mỗi 10.000 VNĐ thanh toán thực tế
+                int diemCong = tongThanhToan.divide(BigDecimal.valueOf(10000), 0, RoundingMode.FLOOR).intValue();
+
+                if (diemCong > 0) {
+                    int diemHienTai = (khachHang.getLoyaltyPoints() != null) ? khachHang.getLoyaltyPoints() : 0;
+                    khachHang.setLoyaltyPoints(diemHienTai + diemCong);
+                    customerRepository.save(khachHang);
+                }
+            }
+        }
+
+        // Bước 13: Trả về hóa đơn vừa thanh toán thành công
         return hoaDonDaLuu;
     }
 
     /**
-     * BƯỚC 12: TẠO HÓA ĐƠN THỦ CÔNG
+     * BƯỚC 14 (KẾ HOẠCH TUẦN 4 - KHÔI): BÁO CÁO DOANH THU THEO NGÀY/THÁNG
+     * Thống kê toàn diện doanh thu từ các hóa đơn đã thanh toán.
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public RevenueReportResponse getRevenueReport(Integer days) {
+        // Mặc định xem 30 ngày gần nhất nếu không chỉ định
+        int soNgay = (days != null && days > 0) ? days : 30;
+        LocalDateTime tuNgay = LocalDate.now().minusDays(soNgay - 1).atStartOfDay();
+
+        List<Invoice> tatCaHoaDon = invoiceRepository.findAll();
+
+        BigDecimal tongDoanhThu = BigDecimal.ZERO;
+        long tongSoHoaDon = 0;
+        BigDecimal doanhThuHomNay = BigDecimal.ZERO;
+
+        LocalDate homNay = LocalDate.now();
+        DateTimeFormatter dtf = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+
+        // Map gom nhóm theo ngày: Ngày -> [DoanhThu, SoHoaDon]
+        Map<String, BigDecimal> doanhThuTheoNgay = new TreeMap<>();
+        Map<String, Long> soHoaDonTheoNgay = new HashMap<>();
+
+        // Khởi tạo trước các ngày trong khoảng để biểu đồ không bị khuyết ngày
+        for (int i = 0; i < soNgay; i++) {
+            String ngayKey = LocalDate.now().minusDays(soNgay - 1 - i).format(dtf);
+            doanhThuTheoNgay.put(ngayKey, BigDecimal.ZERO);
+            soHoaDonTheoNgay.put(ngayKey, 0L);
+        }
+
+        // Map gom nhóm theo phương thức thanh toán
+        Map<String, BigDecimal> doanhThuTheoPhuongThuc = new LinkedHashMap<>();
+        Map<String, Long> soHoaDonTheoPhuongThuc = new LinkedHashMap<>();
+
+        for (Invoice hd : tatCaHoaDon) {
+            BigDecimal tien = (hd.getTotal() != null) ? hd.getTotal() : BigDecimal.ZERO;
+            tongDoanhThu = tongDoanhThu.add(tien);
+            tongSoHoaDon++;
+
+            LocalDateTime thoiGian = hd.getPaidAt();
+            if (thoiGian != null) {
+                // Kiểm tra nếu là hôm nay
+                if (thoiGian.toLocalDate().isEqual(homNay)) {
+                    doanhThuHomNay = doanhThuHomNay.add(tien);
+                }
+
+                // Nếu nằm trong khoảng số ngày lọc
+                if (!thoiGian.isBefore(tuNgay)) {
+                    String ngayStr = thoiGian.toLocalDate().format(dtf);
+                    doanhThuTheoNgay.put(ngayStr, doanhThuTheoNgay.getOrDefault(ngayStr, BigDecimal.ZERO).add(tien));
+                    soHoaDonTheoNgay.put(ngayStr, soHoaDonTheoNgay.getOrDefault(ngayStr, 0L) + 1);
+                }
+            }
+
+            // Gom theo phương thức thanh toán
+            String pt = (hd.getPaymentMethod() != null && !hd.getPaymentMethod().isBlank())
+                    ? hd.getPaymentMethod().toUpperCase()
+                    : "CASH";
+            doanhThuTheoPhuongThuc.put(pt, doanhThuTheoPhuongThuc.getOrDefault(pt, BigDecimal.ZERO).add(tien));
+            soHoaDonTheoPhuongThuc.put(pt, soHoaDonTheoPhuongThuc.getOrDefault(pt, 0L) + 1);
+        }
+
+        // Tính giá trị trung bình trên mỗi hóa đơn
+        BigDecimal trungBinhDon = (tongSoHoaDon > 0)
+                ? tongDoanhThu.divide(BigDecimal.valueOf(tongSoHoaDon), 0, RoundingMode.HALF_UP)
+                : BigDecimal.ZERO;
+
+        // Chuyển map ngày sang List DTO
+        List<DailyRevenueItem> danhSachNgay = new ArrayList<>();
+        for (Map.Entry<String, BigDecimal> entry : doanhThuTheoNgay.entrySet()) {
+            danhSachNgay.add(new DailyRevenueItem(
+                    entry.getKey(),
+                    entry.getValue(),
+                    soHoaDonTheoNgay.getOrDefault(entry.getKey(), 0L)
+            ));
+        }
+
+        // Chuyển map phương thức thanh toán sang List DTO
+        List<PaymentMethodRevenueItem> danhSachPhuongThuc = new ArrayList<>();
+        for (Map.Entry<String, BigDecimal> entry : doanhThuTheoPhuongThuc.entrySet()) {
+            danhSachPhuongThuc.add(new PaymentMethodRevenueItem(
+                    entry.getKey(),
+                    entry.getValue(),
+                    soHoaDonTheoPhuongThuc.getOrDefault(entry.getKey(), 0L)
+            ));
+        }
+
+        return new RevenueReportResponse(
+                tongDoanhThu,
+                tongSoHoaDon,
+                trungBinhDon,
+                doanhThuHomNay,
+                danhSachNgay,
+                danhSachPhuongThuc
+        );
+    }
+
+    /**
+     * BƯỚC 15: TẠO HÓA ĐƠN THỦ CÔNG
      */
     @Override
     public Invoice create(Invoice invoice) {
@@ -167,7 +342,7 @@ public class InvoiceServiceImpl implements InvoiceService {
     }
 
     /**
-     * BƯỚC 13: LẤY DANH SÁCH TOÀN BỘ HÓA ĐƠN
+     * BƯỚC 16: LẤY DANH SÁCH TOÀN BỘ HÓA ĐƠN
      */
     @Override
     @Transactional(readOnly = true)
@@ -176,7 +351,7 @@ public class InvoiceServiceImpl implements InvoiceService {
     }
 
     /**
-     * BƯỚC 14: LẤY HÓA ĐƠN CỦA 1 ĐƠN HÀNG CỤ THỂ
+     * BƯỚC 17: LẤY HÓA ĐƠN CỦA 1 ĐƠN HÀNG CỤ THỂ
      */
     @Override
     @Transactional(readOnly = true)
@@ -185,7 +360,7 @@ public class InvoiceServiceImpl implements InvoiceService {
     }
 
     /**
-     * BƯỚC 15: TÌM HÓA ĐƠN THEO ID
+     * BƯỚC 18: TÌM HÓA ĐƠN THEO ID
      */
     @Override
     @Transactional(readOnly = true)
@@ -195,7 +370,7 @@ public class InvoiceServiceImpl implements InvoiceService {
     }
 
     /**
-     * BƯỚC 16: CẬP NHẬT HÓA ĐƠN
+     * BƯỚC 19: CẬP NHẬT HÓA ĐƠN
      */
     @Override
     public Invoice update(Integer id, Invoice invoiceMoi) {
@@ -214,7 +389,7 @@ public class InvoiceServiceImpl implements InvoiceService {
     }
 
     /**
-     * BƯỚC 17: XÓA HÓA ĐƠN
+     * BƯỚC 20: XÓA HÓA ĐƠN
      */
     @Override
     public void delete(Integer id) {

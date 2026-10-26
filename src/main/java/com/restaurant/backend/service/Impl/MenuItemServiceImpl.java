@@ -202,8 +202,12 @@ public class MenuItemServiceImpl implements MenuItemService {
     @Transactional(readOnly = true)
     public List<BestSellerResponse> getBestSellers() {
         List<Object[]> rows = orderItemRepository.findBestSellingMenuItems();
-        Map<Long, Menuitem> itemMap = menuItemRepository.findAllWithCategory().stream()
-                .collect(Collectors.toMap(Menuitem::getId, m -> m));
+        Map<Long, Menuitem> itemMap = new java.util.HashMap<>();
+        for (Menuitem m : menuItemRepository.findAllWithCategory()) {
+            if (m != null && m.getId() != null) {
+                itemMap.put(m.getId(), m);
+            }
+        }
 
         return rows.stream().map(row -> {
             Long menuItemId = ((Number) row[0]).longValue();

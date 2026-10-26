@@ -127,7 +127,12 @@ public class ReceiptServiceImpl implements ReceiptService {
     @Transactional(readOnly = true)
     public PurchaseReportResponse getPurchaseReport() {
         List<PurchaseReceipt> all = receiptRepository.findAllByOrderByReceiptDateDescIdDesc();
-        BigDecimal totalSpent = all.stream().map(PurchaseReceipt::getTotalAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal totalSpent = BigDecimal.ZERO;
+        for (PurchaseReceipt r : all) {
+            if (r.getTotalAmount() != null) {
+                totalSpent = totalSpent.add(r.getTotalAmount());
+            }
+        }
         long totalCount = all.size();
 
         List<Object[]> supplierAgg = receiptRepository.aggregateCostBySupplier();

@@ -1,14 +1,18 @@
 package com.restaurant.backend.service.Impl;
 
+import com.restaurant.backend.entity.Ingredient;
 import com.restaurant.backend.entity.Menuitem;
 import com.restaurant.backend.entity.Order;
 import com.restaurant.backend.entity.OrderItem;
 import com.restaurant.backend.entity.OrderItemId;
+import com.restaurant.backend.entity.Recipe;
 import com.restaurant.backend.exception.BadRequestException;
 import com.restaurant.backend.exception.NotFoundException;
+import com.restaurant.backend.repository.IngredientRepository;
 import com.restaurant.backend.repository.MenuItemRepository;
 import com.restaurant.backend.repository.OrderItemRepository;
 import com.restaurant.backend.repository.OrderRepository;
+import com.restaurant.backend.repository.RecipeRepository;
 import com.restaurant.backend.service.OrderItemService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,16 +24,16 @@ import java.util.Optional;
 /**
  * =========================================================================
  * LỚP THỰC THI NGHIỆP VỤ GỌI MÓN (OrderItemServiceImpl)
- * Người phụ trách: Ngô Minh Khôi (Tuần 3 - Nghiệp vụ Gọi món & Chi tiết đơn)
+ * Người phụ trách: Ngô Minh Khôi (Tuần 3 & Tuần 4 - Nghiệp vụ Đơn hàng & Kiểm tra Kho)
  * 
- * Mục đích và yêu cầu trọng tâm của Tuần 3:
+ * Mục đích và yêu cầu trọng tâm:
  * 1. API thêm/sửa/xóa món trong đơn hàng.
  * 2. LƯU UNIT_PRICE LÚC GỌI: Khi khách gọi món, hệ thống tự động tìm giá
  *    niêm yết của món ăn trong bảng thực đơn (menu_item) và lưu cố định vào cột
  *    unit_price của chi tiết đơn hàng (order_item).
- *    -> Giải thích: Sau này nhà hàng có điều chỉnh tăng giá món trên thực đơn,
- *       thì các đơn hàng cũ của khách vẫn giữ đúng giá lúc khách gọi!
  * 3. Nếu khách gọi thêm món đã có trong đơn, hệ thống tự động cộng dồn số lượng.
+ * 4. KẾ HOẠCH TUẦN 4 (Khôi): Chặn gọi món khi món đang ngưng bán (available = false)
+ *    hoặc kho không đủ nguyên liệu theo công thức (Recipe) để chế biến -> trả mã lỗi 400.
  * =========================================================================
  */
 @Service
@@ -39,19 +43,26 @@ public class OrderItemServiceImpl implements OrderItemService {
     private final OrderItemRepository orderItemRepository;
     private final OrderRepository orderRepository;
     private final MenuItemRepository menuItemRepository;
+    private final RecipeRepository recipeRepository;
+    private final IngredientRepository ingredientRepository;
 
     // Tiêm các Repository cần thiết qua Constructor
     public OrderItemServiceImpl(
             OrderItemRepository orderItemRepository,
             OrderRepository orderRepository,
-            MenuItemRepository menuItemRepository) {
+            MenuItemRepository menuItemRepository,
+            RecipeRepository recipeRepository,
+            IngredientRepository ingredientRepository) {
         this.orderItemRepository = orderItemRepository;
         this.orderRepository = orderRepository;
         this.menuItemRepository = menuItemRepository;
+        this.recipeRepository = recipeRepository;
+        this.ingredientRepository = ingredientRepository;
     }
 
     /**
      * BƯỚC 1: THÊM MÓN VÀO ĐƠN HÀNG (Gọi món)
+     * Đã bổ sung kiểm tra available và kiểm tra nguyên liệu tồn kho theo Recipe (Tuần 4 - Khôi)
      */
     @Override
     public OrderItem create(OrderItem orderItem) {
@@ -83,9 +94,45 @@ public class OrderItemServiceImpl implements OrderItemService {
         Menuitem monAn = menuItemRepository.findById(Long.valueOf(maMonAn))
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy món ăn có mã ID: " + maMonAn));
 
+        // Bước 1.2.1 (Tuần 4 - Khôi): Chặn gọi món khi món đang tạm ngừng bán (available = false)
+        if (Boolean.FALSE.equals(monAn.getAvailable())) {
+            throw new BadRequestException("Món '" + monAn.getName() + "' hiện đang tạm ngưng phục vụ, không thể gọi món!");
+        }
+
         // Bước 1.3: Đảm bảo số lượng gọi ít nhất là 1
         if (orderItem.getQuantity() == null || orderItem.getQuantity() <= 0) {
             orderItem.setQuantity(1);
+        }
+
+        int soLuongGoiThem = orderItem.getQuantity();
+
+        // Bước 1.3.1 (Tuần 4 - Khôi): Chặn gọi món khi kho thiếu nguyên liệu theo công thức (Recipe)
+        List<Recipe> danhSachCongThuc = recipeRepository.findByMenuItem(Long.valueOf(maMonAn));
+        if (danhSachCongThuc != null && !danhSachCongThuc.isEmpty()) {
+            for (Recipe recipe : danhSachCongThuc) {
+                Ingredient nguyenLieu = recipe.getIngredient();
+                if (nguyenLieu != null) {
+                    // Lấy số lượng nguyên liệu cần cho 1 phần ăn
+                    BigDecimal dinhLuongMotPhan = (recipe.getQuantityNeeded() != null) 
+                            ? recipe.getQuantityNeeded() 
+                            : BigDecimal.ZERO;
+                    // Lượng cần dùng cho số lượng món khách đang muốn gọi
+                    BigDecimal luongCanDung = dinhLuongMotPhan.multiply(BigDecimal.valueOf(soLuongGoiThem));
+
+                    // Lấy tồn kho hiện tại của nguyên liệu
+                    BigDecimal tonKhoHienTai = (nguyenLieu.getStockQty() != null) 
+                            ? nguyenLieu.getStockQty() 
+                            : BigDecimal.ZERO;
+
+                    // Nếu tồn kho không đủ để chế biến -> Báo lỗi mã 400 (BadRequest)
+                    if (tonKhoHienTai.compareTo(luongCanDung) < 0) {
+                        throw new BadRequestException("Món '" + monAn.getName() + "' không đủ nguyên liệu '" 
+                                + nguyenLieu.getName() + "' trong kho để chế biến (cần: " 
+                                + luongCanDung + " " + nguyenLieu.getUnit() + ", trong kho chỉ còn: " 
+                                + tonKhoHienTai + " " + nguyenLieu.getUnit() + ")");
+                    }
+                }
+            }
         }
 
         // Bước 1.4: LƯU ĐƠN GIÁ (unit_price) TẠI THỜI ĐIỂM GỌI MÓN

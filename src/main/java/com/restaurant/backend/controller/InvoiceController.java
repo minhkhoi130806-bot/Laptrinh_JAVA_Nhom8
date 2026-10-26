@@ -3,6 +3,7 @@ package com.restaurant.backend.controller;
 import com.restaurant.backend.dto.CheckoutRequest;
 import com.restaurant.backend.dto.InvoiceRequest;
 import com.restaurant.backend.dto.InvoiceResponse;
+import com.restaurant.backend.dto.RevenueReportResponse;
 import com.restaurant.backend.entity.Invoice;
 import com.restaurant.backend.mapper.InvoiceMapper;
 import com.restaurant.backend.service.InvoiceService;
@@ -15,17 +16,18 @@ import java.util.List;
 
 /**
  * =========================================================================
- * CONTROLLER QUẢN LÝ HÓA ĐƠN & THANH TOÁN (/api/invoices)
- * Người phụ trách: Ngô Minh Khôi (Tuần 3 - Nghiệp vụ Thanh toán Hóa đơn)
+ * CONTROLLER QUẢN LÝ HÓA ĐƠN, THANH TOÁN & BÁO CÁO DOANH THU (/api/invoices)
+ * Người phụ trách: Ngô Minh Khôi (Tuần 3 & Tuần 4 - Nghiệp vụ Thanh toán & Doanh thu)
  * 
  * Mục đích:
- * Tiếp nhận các yêu cầu HTTP liên quan đến Hóa đơn và Thanh toán tiền:
- * 1. POST   /api/invoices/checkout : API thanh toán đơn hàng (Tự động tính tiền, tạo Invoice, đổi status đơn sang PAID, giải phóng bàn)
- * 2. POST   /api/invoices          : Tạo hóa đơn thủ công
- * 3. GET    /api/invoices          : Lấy danh sách tất cả hóa đơn (hoặc lọc theo orderId)
- * 4. GET    /api/invoices/{id}     : Xem chi tiết một hóa đơn theo ID
- * 5. PUT    /api/invoices/{id}     : Cập nhật thông tin hóa đơn
- * 6. DELETE /api/invoices/{id}     : Xóa hóa đơn
+ * Tiếp nhận các yêu cầu HTTP liên quan đến Hóa đơn, Thanh toán và Thống kê:
+ * 1. POST   /api/invoices/checkout       : API thanh toán đơn hàng (Tính tiền, tạo Invoice, đổi status đơn sang PAID, giải phóng bàn, trừ kho theo recipe, tích điểm)
+ * 2. GET    /api/invoices/report/revenue : API báo cáo thống kê doanh thu theo ngày/tháng (Tuần 4 - Khôi)
+ * 3. POST   /api/invoices                : Tạo hóa đơn thủ công
+ * 4. GET    /api/invoices                : Lấy danh sách tất cả hóa đơn (hoặc lọc theo orderId)
+ * 5. GET    /api/invoices/{id}           : Xem chi tiết một hóa đơn theo ID
+ * 6. PUT    /api/invoices/{id}           : Cập nhật thông tin hóa đơn
+ * 7. DELETE /api/invoices/{id}           : Xóa hóa đơn
  * =========================================================================
  */
 @RestController
@@ -44,14 +46,8 @@ public class InvoiceController {
     }
 
     /**
-     * API 1 (TRỌNG TÂM TUẦN 3): THANH TOÁN ĐƠN HÀNG VÀ TẠO HÓA ĐƠN (@Transactional)
+     * API 1 (TRỌNG TÂM TUẦN 3 & 4): THANH TOÁN ĐƠN HÀNG VÀ TẠO HÓA ĐƠN (@Transactional)
      * Endpoint: POST /api/invoices/checkout
-     * Body gửi lên:
-     * {
-     *   "orderId": 1,
-     *   "discount": 10000,
-     *   "paymentMethod": "CASH"
-     * }
      */
     @PostMapping("/checkout")
     @ResponseStatus(HttpStatus.CREATED)
@@ -64,7 +60,26 @@ public class InvoiceController {
     }
 
     /**
-     * API 2: Tạo hóa đơn thủ công
+     * API 2 (KẾ HOẠCH TUẦN 4 - KHÔI): BÁO CÁO THỐNG KÊ DOANH THU
+     * Endpoint: GET /api/invoices/report/revenue?days=30
+     * Cung cấp số liệu tổng doanh thu, doanh thu hôm nay, doanh thu theo ngày và theo phương thức thanh toán.
+     */
+    @GetMapping("/report/revenue")
+    public RevenueReportResponse getRevenueReport(@RequestParam(required = false, defaultValue = "30") Integer days) {
+        return invoiceService.getRevenueReport(days);
+    }
+
+    /**
+     * Alias endpoint cho báo cáo doanh thu
+     * Endpoint: GET /api/invoices/revenue-report?days=30
+     */
+    @GetMapping("/revenue-report")
+    public RevenueReportResponse getRevenueReportAlias(@RequestParam(required = false, defaultValue = "30") Integer days) {
+        return invoiceService.getRevenueReport(days);
+    }
+
+    /**
+     * API 3: Tạo hóa đơn thủ công
      * Endpoint: POST /api/invoices
      */
     @PostMapping
@@ -76,7 +91,7 @@ public class InvoiceController {
     }
 
     /**
-     * API 3: Lấy danh sách hóa đơn
+     * API 4: Lấy danh sách hóa đơn
      * Endpoint: GET /api/invoices hoặc GET /api/invoices?orderId=1
      */
     @GetMapping
@@ -100,7 +115,7 @@ public class InvoiceController {
     }
 
     /**
-     * API 4: Tìm hóa đơn theo ID
+     * API 5: Tìm hóa đơn theo ID
      * Endpoint: GET /api/invoices/{id}
      */
     @GetMapping("/{id}")
@@ -110,7 +125,7 @@ public class InvoiceController {
     }
 
     /**
-     * API 5: Cập nhật hóa đơn
+     * API 6: Cập nhật hóa đơn
      * Endpoint: PUT /api/invoices/{id}
      */
     @PutMapping("/{id}")
@@ -124,7 +139,7 @@ public class InvoiceController {
     }
 
     /**
-     * API 6: Xóa hóa đơn
+     * API 7: Xóa hóa đơn
      * Endpoint: DELETE /api/invoices/{id}
      */
     @DeleteMapping("/{id}")
