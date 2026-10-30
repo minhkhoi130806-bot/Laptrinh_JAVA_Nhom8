@@ -133,6 +133,9 @@ public class SecurityConfig {
                 // Thanh toán MoMo: khách tạo giao dịch/hỏi trạng thái, MoMo gọi IPN (không có JWT; xác thực bằng chữ ký HMAC).
                 .requestMatchers(HttpMethod.POST, "/api/payments/momo/create", "/api/payments/momo/ipn").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/payments/methods", "/api/payments/momo/status").permitAll()
+                // Thanh toán VNPay: khách tạo giao dịch, VNPay gọi IPN/return (xác thực bằng chữ ký HMAC-SHA512).
+                .requestMatchers(HttpMethod.POST, "/api/payments/vnpay/create").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/payments/vnpay/ipn", "/api/payments/vnpay/return", "/api/payments/vnpay/status").permitAll()
                 .requestMatchers("/uploads/**").permitAll()
 
                 // Cho phép mọi người xem danh sách món ăn và danh mục thực đơn (GET)

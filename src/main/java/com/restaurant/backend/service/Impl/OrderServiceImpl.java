@@ -73,7 +73,7 @@ public class OrderServiceImpl implements OrderService {
             if ("DELIVERY".equals(type) && (order.getDeliveryAddress() == null || order.getDeliveryAddress().trim().length() < 8)) {
                 throw new BadRequestException("Vui lòng cung cấp địa chỉ giao hàng đầy đủ");
             }
-            if (order.getPaymentPreference() != null && !Set.of("CASH", "BANKING", "MOMO").contains(order.getPaymentPreference().toUpperCase(Locale.ROOT))) {
+            if (order.getPaymentPreference() != null && !Set.of("CASH", "BANKING", "MOMO", "VNPAY").contains(order.getPaymentPreference().toUpperCase(Locale.ROOT))) {
                 throw new BadRequestException("Phương thức thanh toán không hợp lệ");
             }
         }
