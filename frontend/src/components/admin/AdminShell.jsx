@@ -10,15 +10,22 @@ const NAV = [
   {
     title: 'Bán hàng', items: [
       { href: '/admin/orders', icon: '🧾', label: 'Đơn hàng' },
+      { href: '/admin/kitchen', icon: '👨‍🍳', label: 'Màn hình bếp' },
       { href: '/admin/reservations', icon: '📅', label: 'Đặt bàn' },
+      { href: '/admin/calendar', icon: '🗓️', label: 'Lịch đặt bàn' },
+      { href: '/admin/waitlist', icon: '🕒', label: 'Danh sách chờ' },
       { href: '/admin/invoices', icon: '💳', label: 'Hóa đơn' },
       { href: '/admin/customers', icon: '👥', label: 'Khách hàng' },
+      { href: '/admin/feedback', icon: '💬', label: 'Phản hồi & khiếu nại' },
+      { href: '/admin/loyalty', icon: '🏅', label: 'Khách hàng thân thiết' },
+      { href: '/admin/marketing', icon: '🎟️', label: 'Khuyến mãi' },
     ],
   },
   {
     title: 'Thực đơn', items: [
       { href: '/admin/menu', icon: '🍜', label: 'Món ăn' },
       { href: '/admin/categories', icon: '🗂️', label: 'Danh mục' },
+      { href: '/admin/menu-planner', icon: '🍱', label: 'Điều phối thực đơn' },
     ],
   },
   {
@@ -27,20 +34,30 @@ const NAV = [
       { href: '/admin/suppliers', icon: '🚚', label: 'Nhà cung cấp' },
       { href: '/admin/receipts', icon: '📥', label: 'Phiếu nhập' },
       { href: '/admin/reports', icon: '📈', label: 'Báo cáo kho & món' },
+      { href: '/admin/analytics', icon: '📊', label: 'Phân tích tổng hợp' },
     ],
   },
   {
     title: 'Nhà hàng', items: [
-      { href: '/admin/tables', icon: '🪑', label: 'Sơ đồ bàn' },
+      { href: '/admin/tables', icon: '🪑', label: 'Quản lý bàn' },
+      { href: '/admin/floor', icon: '🗺️', label: 'Sơ đồ bàn nhanh' },
       { href: '/admin/employees', icon: '🧑‍🍳', label: 'Nhân viên' },
+      { href: '/admin/shifts', icon: '🕐', label: 'Lịch ca làm' },
+      { href: '/admin/cleaning', icon: '🧽', label: 'Checklist vệ sinh' },
+      { href: '/admin/maintenance', icon: '🛠️', label: 'Bảo trì thiết bị' },
     ],
   },
-  { title: 'Hệ thống', items: [{ href: '/admin/trash', icon: '🗑️', label: 'Thùng rác' }] },
+  { title: 'Hệ thống', items: [{ href: '/admin/settings', icon: '⚙️', label: 'Cấu hình nhà hàng' }, { href: '/admin/trash', icon: '🗑️', label: 'Thùng rác' }] },
 ];
 
 const ROLE_ACCESS = {
+  '/admin/kitchen': ['MANAGER', 'CHEF'],
   '/admin/employees': ['MANAGER'],
   '/admin/invoices': ['MANAGER', 'CASHIER'],
+  '/admin/analytics': ['MANAGER', 'CASHIER'],
+  '/admin/marketing': ['MANAGER'],
+  '/admin/shifts': ['MANAGER'],
+  '/admin/settings': ['MANAGER'],
 };
 const ROLES = ['MANAGER', 'CASHIER', 'WAITER', 'CHEF'];
 

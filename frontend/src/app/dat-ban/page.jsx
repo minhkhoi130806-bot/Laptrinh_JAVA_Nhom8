@@ -36,14 +36,23 @@ export default function ReservationPage() {
     if (!tableId) { setError('Vui lòng chọn một bàn còn trống.'); return; }
     setSaving(true);
     try {
-      const allCustomers = await api('/customers');
-      const phone = form.phone.trim();
-      let customer = (allCustomers || []).find((item) => item.phone === phone && !item.deleted);
-      if (!customer) {
-        customer = await api('/customers', { method: 'POST', body: { fullName: form.fullName.trim(), phone, email: form.email.trim() || null } });
-      }
-      const saved = await api('/reservations', { method: 'POST', body: { customerId: Number(customer.id), tableId: Number(tableId), reservedAt: form.reservedAt, guestCount: Number(form.guestCount), note: form.note.trim() || null } });
-      setSuccess({ id: saved.id, reservedAt: form.reservedAt, table: tables.find((item) => item.id === Number(tableId)) });
+      // Đặt bàn công khai: không yêu cầu khách truy cập API quản lý khách hàng.
+      const saved = await api('/reservations/public', {
+        method: 'POST',
+        body: {
+          fullName: form.fullName.trim(),
+          phone: form.phone.trim(),
+          email: form.email.trim() || null,
+          tableId: Number(tableId),
+          reservedAt: form.reservedAt,
+          guestCount: Number(form.guestCount),
+          note: form.note.trim() || null,
+        },
+      });
+      const selectedTable = tables.find((item) => item.id === Number(tableId));
+      const bookingRecord = { id: saved.id, fullName: form.fullName.trim(), phone: form.phone.trim(), email: form.email.trim(), reservedAt: form.reservedAt, guestCount: Number(form.guestCount), note: form.note.trim(), tableCode: selectedTable?.tableCode || '', savedAt: new Date().toISOString() };
+      try { localStorage.setItem('hanseoul:lastReservation', JSON.stringify(bookingRecord)); } catch {}
+      setSuccess({ id: saved.id, reservedAt: form.reservedAt, table: selectedTable });
       setForm({ fullName: '', phone: '', email: '', reservedAt: initialTime(), guestCount: '2', note: '' });
       setTableId('');
     } catch (e) { setError(e.message || 'Đặt bàn chưa thành công. Vui lòng thử lại.'); }

@@ -35,6 +35,13 @@ public class OrderMapper {
         order.setEmployeeId(request.employeeId());
         order.setCreatedAt(request.createdAt());
         order.setStatus(request.status());
+        order.setCustomerName(request.customerName());
+        order.setCustomerPhone(request.customerPhone());
+        order.setCustomerEmail(request.customerEmail());
+        order.setOrderType(request.orderType());
+        order.setDeliveryAddress(request.deliveryAddress());
+        order.setCustomerNote(request.customerNote());
+        order.setPaymentPreference(request.paymentPreference());
         return order;
     }
 
@@ -54,7 +61,14 @@ public class OrderMapper {
                 order.getCreatedAt(),
                 order.getStatus(),
                 t.total(),
-                t.itemCount()
+                t.itemCount(),
+                order.getCustomerName(),
+                order.getCustomerPhone(),
+                order.getCustomerEmail(),
+                order.getOrderType(),
+                order.getDeliveryAddress(),
+                order.getCustomerNote(),
+                order.getPaymentPreference()
         );
     }
 

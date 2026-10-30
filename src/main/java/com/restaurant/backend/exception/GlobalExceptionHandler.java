@@ -83,6 +83,13 @@ public class GlobalExceptionHandler {
         );
     }
 
+    // Cong thanh toan ben ngoai loi/timeout (502)
+    @ExceptionHandler(PaymentGatewayException.class)
+    public ResponseEntity<ApiError> handlePaymentGateway(
+            PaymentGatewayException ex, HttpServletRequest request) {
+        return buildResponse(HttpStatus.BAD_GATEWAY, ex.getMessage(), request);
+    }
+
     // Xu ly cac RuntimeException chua co handler rieng
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<ApiError> handleRuntimeException(

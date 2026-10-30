@@ -1,15 +1,19 @@
-
 package com.restaurant.backend.dto;
 
 import java.time.LocalDateTime;
 
-// Du lieu gui len khi tao hoac cap nhat don hang
+// DTO nhận đơn đặt món; giá tiền luôn được lấy lại từ database theo từng món.
 public record OrderRequest(
         Integer customerId,
         Integer tableId,
         Integer employeeId,
         LocalDateTime createdAt,
-        String status
-) {
-}
-
+        String status,
+        String customerName,
+        String customerPhone,
+        String customerEmail,
+        String orderType,
+        String deliveryAddress,
+        String customerNote,
+        String paymentPreference
+) { }

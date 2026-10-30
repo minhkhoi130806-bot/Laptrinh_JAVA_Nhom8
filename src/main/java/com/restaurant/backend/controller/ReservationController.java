@@ -4,6 +4,11 @@ import com.restaurant.backend.dto.DiningTableResponse;
 import com.restaurant.backend.dto.ReservationRequest;
 import com.restaurant.backend.dto.ReservationResponse;
 import com.restaurant.backend.dto.ReservationStatusRequest;
+import com.restaurant.backend.dto.PublicReservationRequest;
+import com.restaurant.backend.entity.Customer;
+import com.restaurant.backend.repository.CustomerRepository;
+import jakarta.validation.Valid;
+import org.springframework.transaction.annotation.Transactional;
 import com.restaurant.backend.mapper.DiningTableMapper;
 import com.restaurant.backend.mapper.ReservationMapper;
 import com.restaurant.backend.service.ReservationService;
@@ -21,19 +26,55 @@ public class ReservationController {
     private final ReservationService reservationService;
     private final ReservationMapper reservationMapper;
     private final DiningTableMapper tableMapper;
+    private final CustomerRepository customerRepository;
 
     public ReservationController(ReservationService reservationService,
                                  ReservationMapper reservationMapper,
-                                 DiningTableMapper tableMapper) {
+                                 DiningTableMapper tableMapper,
+                                 CustomerRepository customerRepository) {
         this.reservationService = reservationService;
         this.reservationMapper = reservationMapper;
         this.tableMapper = tableMapper;
+        this.customerRepository = customerRepository;
     }
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public ReservationResponse addReservation(@RequestBody ReservationRequest request) {
         return reservationMapper.toResponse(reservationService.create(request));
+    }
+
+    /**
+     * Đặt bàn công khai cho khách từ website.
+     * Khách không cần đăng nhập và không cần biết customerId.
+     * POST /api/reservations/public
+     */
+    @PostMapping("/public")
+    @ResponseStatus(HttpStatus.CREATED)
+    @Transactional
+    public ReservationResponse createPublicReservation(@Valid @RequestBody PublicReservationRequest request) {
+        String phone = request.phone().trim();
+        Customer customer = customerRepository.findByPhone(phone).orElseGet(() -> {
+            Customer created = new Customer();
+            created.setFullName(request.fullName().trim());
+            created.setPhone(phone);
+            created.setEmail(request.email() == null || request.email().isBlank() ? null : request.email().trim());
+            created.setLoyaltyPoints(0);
+            created.setDeleted(false);
+            return customerRepository.save(created);
+        });
+
+        // Nếu khách đã tồn tại nhưng bị xóa mềm, đặt bàn mới sẽ kích hoạt lại hồ sơ.
+        if (Boolean.TRUE.equals(customer.getDeleted())) {
+            customer.setDeleted(false);
+            customer.setDeletedAt(null);
+            customer = customerRepository.save(customer);
+        }
+        ReservationRequest reservationRequest = new ReservationRequest(
+                customer.getId(), request.tableId(), request.reservedAt(),
+                request.guestCount(), request.note()
+        );
+        return reservationMapper.toResponse(reservationService.create(reservationRequest));
     }
 
     // GET /api/reservations?customerId=1  hoặc  ?tableId=2

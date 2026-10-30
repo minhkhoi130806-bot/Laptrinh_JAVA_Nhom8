@@ -15,7 +15,7 @@ public record CheckoutRequest(
         // Tiền giảm giá (nếu có, ví dụ: 20000 VNĐ). Nếu không truyền mặc định là 0
         BigDecimal discount,
 
-        // Phương thức thanh toán: CASH (Tiền mặt), BANKING (Chuyển khoản), CARD (Quẹt thẻ)
+        // Phương thức thanh toán: CASH (Tiền mặt), BANKING (Chuyển khoản), CARD (Quẹt thẻ), MOMO (ví MoMo, do hệ thống tự ghi khi IPN thành công)
         String paymentMethod
 ) {
 }

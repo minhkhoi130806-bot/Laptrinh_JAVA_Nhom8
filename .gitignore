@@ -34,3 +34,10 @@ build/
 
 # Ảnh upload (lưu cục bộ trong lúc dev)
 uploads/
+
+# Secrets and local overrides
+.env
+.env.*
+!.env.example
+application-local.properties
+application-prod.properties

@@ -5,6 +5,13 @@ import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.stereotype.Component;
+import org.springframework.beans.factory.annotation.Value;
+import jakarta.annotation.PostConstruct;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.env.Environment;
+import org.springframework.core.env.Profiles;
 
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
@@ -26,16 +33,42 @@ public class JwtUtil {
 
     // Chuỗi bí mật dùng để ký và xác thực mã token.
     // Chuỗi này phải dài ít nhất 32 ký tự (256-bit) để đảm bảo thuật toán HMAC-SHA256 an toàn.
-    private static final String SECRET_STRING = "NhaHangMonHanQuocNhom8SecretKey2026SecureKey!";
+    @Value("${app.security.jwt-secret:}")
+    private String secretString;
 
-    // Thời gian hết hạn của token: 24 giờ (tính theo mili-giây: 24h * 60m * 60s * 1000ms)
-    private static final long EXPIRATION_TIME = 24 * 60 * 60 * 1000L;
+    @Value("${app.security.jwt-expiration-ms:900000}")
+    private long expirationTime;
+
+    private static final Logger log = LoggerFactory.getLogger(JwtUtil.class);
+    // Tiền tố của khóa dev mặc định trong application.properties.
+    private static final String DEV_SECRET_PREFIX = "han-seoul-dev-only-";
+
+    @Autowired
+    private Environment environment;
+
+    // Không cho ứng dụng khởi động với khóa JWT rỗng/ngắn, tránh dùng khóa yếu ngoài ý muốn.
+    @PostConstruct
+    void validateConfiguration() {
+        if (secretString == null || secretString.getBytes(StandardCharsets.UTF_8).length < 32) {
+            throw new IllegalStateException("JWT_SECRET bắt buộc phải có tối thiểu 32 byte. Hãy cấu hình biến môi trường JWT_SECRET.");
+        }
+        if (secretString.startsWith(DEV_SECRET_PREFIX)) {
+            // Khóa dev là công khai trong mã nguồn: cho phép khi chạy local, cấm ở môi trường prod.
+            if (environment != null && environment.acceptsProfiles(Profiles.of("prod"))) {
+                throw new IllegalStateException("Không được dùng khóa JWT dev ở profile prod. Hãy đặt biến môi trường JWT_SECRET.");
+            }
+            log.warn("Đang dùng JWT secret DEV mặc định. Chỉ phù hợp chạy local; khi deploy hãy đặt JWT_SECRET riêng.");
+        }
+        if (expirationTime < 60_000L) {
+            throw new IllegalStateException("JWT_EXPIRATION_MS phải tối thiểu 60000 (60 giây).");
+        }
+    }
 
     /**
      * Lấy khóa bí mật (SecretKey) từ chuỗi SECRET_STRING
      */
     private SecretKey getSigningKey() {
-        byte[] keyBytes = SECRET_STRING.getBytes(StandardCharsets.UTF_8);
+        byte[] keyBytes = secretString.getBytes(StandardCharsets.UTF_8);
         return Keys.hmacShaKeyFor(keyBytes);
     }
 
@@ -50,7 +83,7 @@ public class JwtUtil {
         // Thời điểm bắt đầu tạo token
         Date bayGio = new Date();
         // Thời điểm token hết hạn (sau 24h)
-        Date hetHan = new Date(bayGio.getTime() + EXPIRATION_TIME);
+        Date hetHan = new Date(bayGio.getTime() + expirationTime);
 
         // Xây dựng token bằng thư viện JJWT
         return Jwts.builder()

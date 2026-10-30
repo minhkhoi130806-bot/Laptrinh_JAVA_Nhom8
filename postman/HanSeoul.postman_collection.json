@@ -1,0 +1,18 @@
+{
+  "info": {
+    "name": "Han Seoul API",
+    "description": "Smoke tests cho các endpoint công khai và đăng nhập. Thay baseUrl theo môi trường.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8080" },
+    { "key": "token", "value": "" }
+  ],
+  "item": [
+    { "name": "Health", "request": { "method": "GET", "url": "{{baseUrl}}/actuator/health" } },
+    { "name": "Menu items", "request": { "method": "GET", "url": "{{baseUrl}}/api/menu-items" } },
+    { "name": "Public contact", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"name\":\"Nguyen Van A\",\"phone\":\"0900000000\",\"email\":\"a@example.com\",\"subject\":\"Góp ý dịch vụ\",\"message\":\"Tôi muốn góp ý về trải nghiệm tại nhà hàng.\"}" }, "url": "{{baseUrl}}/api/contact" } },
+    { "name": "Public event inquiry", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"name\":\"Nguyen Van A\",\"phone\":\"0900000000\",\"email\":\"a@example.com\",\"event\":\"Sinh nhật\",\"date\":\"2026-11-15\",\"guests\":12,\"budget\":\"200.000–350.000 ₫\",\"note\":\"Cần ghế trẻ em\"}" }, "url": "{{baseUrl}}/api/event-inquiries" } },
+    { "name": "Login staff", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"username\":\"admin\",\"password\":\"CHANGE_ME\"}" }, "url": "{{baseUrl}}/api/auth/login" } }
+  ]
+}
