@@ -15,6 +15,24 @@ import { useToast } from '@/components/admin/Feedback';
  * - Module Tồn kho, Chi phí nhập & Món bán chạy: Phụ trách bởi Mai Chí Cường (Tuần 4)
  * =========================================================================
  */
+function downloadCsv(filename, rows) {
+  if (!Array.isArray(rows) || rows.length === 0) return false;
+  const columns = [...new Set(rows.flatMap((row) => Object.keys(row || {})))];
+  const escapeCell = (value) => {
+    const text = value == null ? '' : typeof value === 'object' ? JSON.stringify(value) : String(value);
+    return `"${text.replace(/"/g, '""')}"`;
+  };
+  const csv = '\uFEFF' + [columns.map(escapeCell).join(','), ...rows.map((row) => columns.map((key) => escapeCell(row[key])).join(','))].join('\r\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = filename;
+  anchor.click();
+  URL.revokeObjectURL(url);
+  return true;
+}
+
 export default function ReportsPage() {
   // Tabs: revenue (Doanh thu - Khôi) | inventory | purchase | bestSellers | stockStatus
   const [tab, setTab] = useState('revenue');
@@ -73,6 +91,29 @@ export default function ReportsPage() {
     100000
   );
 
+  const exportCurrentReport = () => {
+    const sources = {
+      revenue: revData.dailyRevenues || [],
+      inventory: invData.ingredients || [],
+      purchase: purData.recentReceipts || [],
+      bestSellers: bestList || [],
+      stockStatus: stockList || [],
+    };
+    const labels = {
+      revenue: 'doanh-thu-theo-ngay',
+      inventory: 'ton-kho-nguyen-lieu',
+      purchase: 'phieu-nhap-hang',
+      bestSellers: 'mon-ban-chay',
+      stockStatus: 'kiem-tra-ton-kho-mon',
+    };
+    const rows = sources[tab] || [];
+    if (!downloadCsv(`${labels[tab] || 'bao-cao'}.csv`, rows)) {
+      toast('Không có dữ liệu để xuất ở mục này.', 'err');
+    } else {
+      toast('Đã xuất báo cáo CSV.', 'ok');
+    }
+  };
+
   return (
     <>
       <PageHeader
@@ -80,6 +121,9 @@ export default function ReportsPage() {
         title="Báo cáo & Thống kê"
         subtitle="Doanh thu bán hàng, chi phí nhập kho và tình trạng thực đơn"
       >
+        <button type="button" className="adm-btn ghost sm" onClick={exportCurrentReport}>
+          ⬇ Xuất CSV
+        </button>
         <button
           type="button"
           className="adm-btn sm"
@@ -213,6 +257,7 @@ export default function ReportsPage() {
                     const tenPhuongThuc = p.paymentMethod === 'CASH' ? '💵 Tiền mặt (CASH)'
                       : p.paymentMethod === 'BANKING' || p.paymentMethod === 'TRANSFER' ? '🏦 Chuyển khoản ngân hàng'
                       : p.paymentMethod === 'CARD' ? '💳 Thẻ tín dụng / Ghi nợ'
+                      : p.paymentMethod === 'MOMO' ? '📱 Ví MoMo'
                       : p.paymentMethod;
                     const tongTien = Number(revData.totalRevenue || 0);
                     const pct = tongTien > 0 ? (Number(p.revenue) / tongTien) * 100 : 0;

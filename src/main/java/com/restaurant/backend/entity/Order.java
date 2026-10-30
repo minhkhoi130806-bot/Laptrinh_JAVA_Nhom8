@@ -28,7 +28,29 @@ public class Order {
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 
-    // Trang thai don hang
+    // Thông tin liên hệ và giao nhận cho đơn đặt món từ website khách hàng.
+    @Column(name = "customer_name", length = 100)
+    private String customerName;
+
+    @Column(name = "customer_phone", length = 20)
+    private String customerPhone;
+
+    @Column(name = "customer_email", length = 150)
+    private String customerEmail;
+
+    @Column(name = "order_type", length = 20)
+    private String orderType;
+
+    @Column(name = "delivery_address", length = 500)
+    private String deliveryAddress;
+
+    @Column(name = "customer_note", length = 1000)
+    private String customerNote;
+
+    @Column(name = "payment_preference", length = 30)
+    private String paymentPreference;
+
+    // Trạng thái đơn hàng
     @Column(name = "status")
     private String status;
 
@@ -74,6 +96,21 @@ public class Order {
     public void setCreatedAt(LocalDateTime createdAt) {
         this.createdAt = createdAt;
     }
+
+    public String getCustomerName() { return customerName; }
+    public void setCustomerName(String value) { this.customerName = value; }
+    public String getCustomerPhone() { return customerPhone; }
+    public void setCustomerPhone(String value) { this.customerPhone = value; }
+    public String getCustomerEmail() { return customerEmail; }
+    public void setCustomerEmail(String value) { this.customerEmail = value; }
+    public String getOrderType() { return orderType; }
+    public void setOrderType(String value) { this.orderType = value; }
+    public String getDeliveryAddress() { return deliveryAddress; }
+    public void setDeliveryAddress(String value) { this.deliveryAddress = value; }
+    public String getCustomerNote() { return customerNote; }
+    public void setCustomerNote(String value) { this.customerNote = value; }
+    public String getPaymentPreference() { return paymentPreference; }
+    public void setPaymentPreference(String value) { this.paymentPreference = value; }
 
     public String getStatus() {
         return status;

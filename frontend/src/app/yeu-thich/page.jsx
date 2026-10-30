@@ -1,0 +1,12 @@
+'use client';
+import { useEffect, useState } from 'react';
+import Link from 'next/link';
+import ShopLayout from '@/components/shop/ShopLayout';
+import MenuCard from '@/components/shop/MenuCard';
+import { api } from '@/lib/api';
+import { readFavorites } from '@/components/shop/FavoriteButton';
+export default function FavoritesPage() {
+  const [items, setItems] = useState([]); const [loading, setLoading] = useState(true); const [error, setError] = useState('');
+  useEffect(() => { let alive = true; const load = () => { const saved = readFavorites(); if (!saved.length) { if (alive) { setItems([]); setLoading(false); } return; } api('/menu-items').then((rows) => { if (alive) { const available = (rows || []).filter((r) => saved.some((s) => String(s.id) === String(r.id)) && !r.deleted); const missing = saved.filter((s) => !available.some((r) => String(r.id) === String(s.id))); setItems([...available, ...missing]); } }).catch(() => alive && setItems(saved)).finally(() => alive && setLoading(false)); }; load(); const update = () => load(); window.addEventListener('favorites:changed', update); return () => { alive = false; window.removeEventListener('favorites:changed', update); }; }, []);
+  return <ShopLayout><section className="shop-page-hero"><div className="shop-container"><span className="shop-eyebrow">YOUR PERSONAL MENU</span><h1>Món ăn <em>yêu thích</em></h1><p>Lưu lại những món bạn muốn thử trong lần ghé Han Seoul tiếp theo.</p><div className="shop-breadcrumb"><Link href="/">Trang chủ</Link><span>/</span><span>Yêu thích</span></div></div></section><section className="shop-section shop-container">{loading && <div className="shop-state"><span className="shop-spinner"/>Đang tải danh sách...</div>}{error && <p className="shop-form-error">{error}</p>}{!loading && items.length === 0 && <div className="shop-empty"><span>♡</span><h3>Danh sách yêu thích đang trống</h3><p>Chạm vào biểu tượng trái tim ở món ăn để lưu lại tại đây.</p><Link className="shop-button" href="/thuc-don">Khám phá thực đơn ↗</Link></div>}{items.length > 0 && <><div className="shop-section-heading"><div><span className="shop-eyebrow">ĐÃ LƯU</span><h2>{items.length} món bạn quan tâm</h2></div><Link className="shop-outline-link" href="/thuc-don">Thêm món khác ↗</Link></div><div className="shop-menu-grid">{items.map((item) => <MenuCard key={item.id} item={item}/>)}</div><p className="shop-dish-note">Danh sách yêu thích được lưu trên trình duyệt hiện tại; nó không đồng bộ giữa các thiết bị.</p></>}</section></ShopLayout>;
+}

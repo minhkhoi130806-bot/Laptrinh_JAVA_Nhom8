@@ -57,6 +57,26 @@ public class OrderServiceImpl implements OrderService {
      */
     @Override
     public Order create(Order order) {
+        // Kiểm tra dữ liệu dành cho đơn do khách tự đặt trên website.
+        if (order.getOrderType() != null) {
+            String type = order.getOrderType().trim().toUpperCase(Locale.ROOT);
+            if (!Set.of("DINE_IN", "TAKEAWAY", "DELIVERY").contains(type)) {
+                throw new BadRequestException("Hình thức nhận món không hợp lệ");
+            }
+            order.setOrderType(type);
+            if (order.getCustomerName() == null || order.getCustomerName().isBlank()) {
+                throw new BadRequestException("Vui lòng cung cấp họ tên người nhận");
+            }
+            if (order.getCustomerPhone() == null || !order.getCustomerPhone().matches("^0[0-9]{9,10}$")) {
+                throw new BadRequestException("Số điện thoại người nhận không hợp lệ");
+            }
+            if ("DELIVERY".equals(type) && (order.getDeliveryAddress() == null || order.getDeliveryAddress().trim().length() < 8)) {
+                throw new BadRequestException("Vui lòng cung cấp địa chỉ giao hàng đầy đủ");
+            }
+            if (order.getPaymentPreference() != null && !Set.of("CASH", "BANKING", "MOMO").contains(order.getPaymentPreference().toUpperCase(Locale.ROOT))) {
+                throw new BadRequestException("Phương thức thanh toán không hợp lệ");
+            }
+        }
         // Đặt ID là null để CSDL tự sinh khóa chính tăng dần (Auto Increment)
         order.setId(null);
 
@@ -148,6 +168,13 @@ public class OrderServiceImpl implements OrderService {
         if (orderMoi.getStatus() != null) {
             donHangCu.setStatus(orderMoi.getStatus());
         }
+        if (orderMoi.getCustomerName() != null) donHangCu.setCustomerName(orderMoi.getCustomerName());
+        if (orderMoi.getCustomerPhone() != null) donHangCu.setCustomerPhone(orderMoi.getCustomerPhone());
+        if (orderMoi.getCustomerEmail() != null) donHangCu.setCustomerEmail(orderMoi.getCustomerEmail());
+        if (orderMoi.getOrderType() != null) donHangCu.setOrderType(orderMoi.getOrderType());
+        if (orderMoi.getDeliveryAddress() != null) donHangCu.setDeliveryAddress(orderMoi.getDeliveryAddress());
+        if (orderMoi.getCustomerNote() != null) donHangCu.setCustomerNote(orderMoi.getCustomerNote());
+        if (orderMoi.getPaymentPreference() != null) donHangCu.setPaymentPreference(orderMoi.getPaymentPreference());
 
         // Lưu lại vào CSDL
         return orderRepository.save(donHangCu);
