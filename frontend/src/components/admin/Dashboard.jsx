@@ -5,6 +5,7 @@ import { useApi } from '@/lib/hooks';
 import Badge from './Badge';
 import PageHeader from './PageHeader';
 import StateBox from './StateBox';
+import Icon from '@/components/ui/Icon';
 
 export default function Dashboard() {
   const tables = useApi('/tables');
@@ -80,7 +81,7 @@ export default function Dashboard() {
           <section className="adm-panel">
             <h3>Nguyên liệu sắp hết</h3>
             <div>
-              {low.length === 0 && <p className="adm-muted">Tồn kho đều ổn 👍</p>}
+              {low.length === 0 && <p className="adm-muted adm-inline-status"><Icon name="check" size={15} />Tồn kho đều ổn</p>}
               {low.slice(0, 6).map((i) => (
                 <Link key={i.id} href={`/admin/ingredients/${i.id}`} className="adm-li">
                   <b>{i.name}</b><span className="adm-muted">còn {num(i.stockQty)} / tối thiểu {num(i.minStock)} {i.unit}</span>

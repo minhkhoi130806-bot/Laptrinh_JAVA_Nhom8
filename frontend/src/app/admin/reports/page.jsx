@@ -7,6 +7,7 @@ import { useApi } from '@/lib/hooks';
 import PageHeader from '@/components/admin/PageHeader';
 import StateBox from '@/components/admin/StateBox';
 import { useToast } from '@/components/admin/Feedback';
+import Icon from '@/components/ui/Icon';
 
 /**
  * =========================================================================
@@ -122,7 +123,7 @@ export default function ReportsPage() {
         subtitle="Doanh thu bán hàng, chi phí nhập kho và tình trạng thực đơn"
       >
         <button type="button" className="adm-btn ghost sm" onClick={exportCurrentReport}>
-          ⬇ Xuất CSV
+          <Icon name="download" size={15} />Xuất CSV
         </button>
         <button
           type="button"
@@ -131,7 +132,7 @@ export default function ReportsPage() {
           onClick={handleSyncOutOfStock}
           title="Tự động kiểm tra công thức món và tắt bán các món thiếu nguyên liệu"
         >
-          {syncing ? 'Đang đồng bộ…' : '⚡ Đồng bộ món hết hàng'}
+          <Icon name="sparkle" size={15} />{syncing ? 'Đang đồng bộ…' : 'Đồng bộ món hết hàng'}
         </button>
       </PageHeader>
 
@@ -143,13 +144,13 @@ export default function ReportsPage() {
           className={`rep-tab ${tab === 'revenue' ? 'active' : ''}`}
           onClick={() => setTab('revenue')}
         >
-          💰 Doanh thu ({vnd(revData.totalRevenue)})
+          <Icon name="chart" size={16} />Doanh thu ({vnd(revData.totalRevenue)})
         </button>
         <button
           className={`rep-tab ${tab === 'inventory' ? 'active' : ''}`}
           onClick={() => setTab('inventory')}
         >
-          🥬 Tồn kho ({invData.totalIngredients})
+          <Icon name="leaf" size={16} />Tồn kho ({invData.totalIngredients})
           {invData.lowStockCount > 0 && <span className="rep-badge warn">{invData.lowStockCount}</span>}
           {invData.outOfStockCount > 0 && <span className="rep-badge danger">{invData.outOfStockCount}</span>}
         </button>
@@ -157,19 +158,19 @@ export default function ReportsPage() {
           className={`rep-tab ${tab === 'purchase' ? 'active' : ''}`}
           onClick={() => setTab('purchase')}
         >
-          📥 Chi phí nhập hàng ({vnd(purData.totalSpent)})
+          <Icon name="download" size={16} />Chi phí nhập hàng ({vnd(purData.totalSpent)})
         </button>
         <button
           className={`rep-tab ${tab === 'bestSellers' ? 'active' : ''}`}
           onClick={() => setTab('bestSellers')}
         >
-          🍜 Món bán chạy ({bestList.length})
+          <Icon name="bowl" size={16} />Món bán chạy ({bestList.length})
         </button>
         <button
           className={`rep-tab ${tab === 'stockStatus' ? 'active' : ''}`}
           onClick={() => setTab('stockStatus')}
         >
-          ⚠️ Kiểm tra món hết hàng ({stockList.filter((s) => !s.hasEnoughStock).length} món thiếu)
+          <Icon name="layers" size={16} />Kiểm tra món hết hàng ({stockList.filter((s) => !s.hasEnoughStock).length} món thiếu)
         </button>
       </div>
 
@@ -180,11 +181,11 @@ export default function ReportsPage() {
           <div className="adm-stats">
             <div className="adm-stat">
               <span className="adm-muted">Tổng doanh thu</span>
-              <b style={{ color: '#16a34a' }}>{vnd(revData.totalRevenue)}</b>
+              <b style={{ color: 'var(--green)' }}>{vnd(revData.totalRevenue)}</b>
             </div>
             <div className="adm-stat">
               <span className="adm-muted">Doanh thu hôm nay</span>
-              <b style={{ color: '#2563eb' }}>{vnd(revData.todayRevenue)}</b>
+              <b style={{ color: 'var(--blue)' }}>{vnd(revData.todayRevenue)}</b>
             </div>
             <div className="adm-stat">
               <span className="adm-muted">Tổng số hóa đơn</span>
@@ -197,8 +198,8 @@ export default function ReportsPage() {
           </div>
 
           {/* BỘ LỌC KHOẢNG THỜI GIAN */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 18, marginBottom: 12 }}>
-            <h3 style={{ margin: 0 }}>📊 Biểu đồ doanh thu theo ngày ({revDays} ngày gần nhất)</h3>
+          <div className="rep-chart-heading">
+            <h3 style={{ margin: 0 }}>Biểu đồ doanh thu theo ngày ({revDays} ngày gần nhất)</h3>
             <div style={{ display: 'flex', gap: 6 }}>
               {[7, 14, 30].map((d) => (
                 <button
@@ -231,7 +232,7 @@ export default function ReportsPage() {
                             className="rev-bar-fill"
                             style={{
                               height: `${pct}%`,
-                              background: rev > 0 ? 'linear-gradient(180deg, #16a34a, #22c55e)' : '#e2e8f0'
+                              background: rev > 0 ? 'linear-gradient(180deg, var(--green), #82ad91)' : 'var(--line)'
                             }}
                           />
                         </div>
@@ -248,7 +249,7 @@ export default function ReportsPage() {
           <div className="adm-two" style={{ marginTop: 18 }}>
             {/* THỐNG KÊ THEO PHƯƠNG THỨC THANH TOÁN */}
             <section className="adm-panel">
-              <h3>💳 Theo phương thức thanh toán</h3>
+              <h3>Theo phương thức thanh toán</h3>
               {(!revData.paymentMethodRevenues || revData.paymentMethodRevenues.length === 0) ? (
                 <p className="adm-muted">Chưa có giao dịch thanh toán nào.</p>
               ) : (
@@ -262,13 +263,13 @@ export default function ReportsPage() {
                     const tongTien = Number(revData.totalRevenue || 0);
                     const pct = tongTien > 0 ? (Number(p.revenue) / tongTien) * 100 : 0;
                     return (
-                      <div key={p.paymentMethod} style={{ borderBottom: '1px solid #f1f5f9', paddingBottom: 10 }}>
+                      <div key={p.paymentMethod} style={{ borderBottom: '1px solid var(--gray-bg)', paddingBottom: 10 }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
                           <span><strong>{tenPhuongThuc}</strong> ({p.invoiceCount} đơn)</span>
-                          <b style={{ color: '#16a34a' }}>{vnd(p.revenue)}</b>
+                          <b style={{ color: 'var(--green)' }}>{vnd(p.revenue)}</b>
                         </div>
-                        <div style={{ background: '#f1f5f9', borderRadius: 4, height: 7, overflow: 'hidden' }}>
-                          <div style={{ background: '#16a34a', height: '100%', width: `${pct}%` }} />
+                        <div style={{ background: 'var(--gray-bg)', borderRadius: 4, height: 7, overflow: 'hidden' }}>
+                          <div style={{ background: 'var(--green)', height: '100%', width: `${pct}%` }} />
                         </div>
                       </div>
                     );
@@ -279,7 +280,7 @@ export default function ReportsPage() {
 
             {/* BẢNG CHI TIẾT DOANH THU THEO TỪNG NGÀY */}
             <section className="adm-panel">
-              <h3>📅 Danh sách ngày gần đây</h3>
+              <h3>Danh sách ngày gần đây</h3>
               <div className="adm-table-wrap" style={{ maxHeight: 320, overflowY: 'auto' }}>
                 <table className="adm-table">
                   <thead>
@@ -294,7 +295,7 @@ export default function ReportsPage() {
                       <tr key={d.date}>
                         <td><b>{d.date}</b></td>
                         <td style={{ textAlign: 'center' }}>{d.invoiceCount} đơn</td>
-                        <td style={{ textAlign: 'right', fontWeight: 700, color: Number(d.revenue) > 0 ? '#16a34a' : '#94a3b8' }}>
+                        <td style={{ textAlign: 'right', fontWeight: 700, color: Number(d.revenue) > 0 ? 'var(--green)' : 'var(--muted)' }}>
                           {vnd(d.revenue)}
                         </td>
                       </tr>
@@ -318,15 +319,15 @@ export default function ReportsPage() {
             </div>
             <div className="adm-stat">
               <span className="adm-muted">Sắp hết (≤ min)</span>
-              <b style={{ color: '#d97706' }}>{invData.lowStockCount} loại</b>
+              <b style={{ color: 'var(--amber)' }}>{invData.lowStockCount} loại</b>
             </div>
             <div className="adm-stat">
               <span className="adm-muted">Đã hết hàng (= 0)</span>
-              <b style={{ color: '#dc2626' }}>{invData.outOfStockCount} loại</b>
+              <b style={{ color: 'var(--brand)' }}>{invData.outOfStockCount} loại</b>
             </div>
-            <Link href="/admin/receipts/create" className="adm-stat" style={{ background: '#fef2f2' }}>
+            <Link href="/admin/receipts/create" className="adm-stat" style={{ background: 'var(--brand-soft)' }}>
               <span className="adm-muted">Hành động nhanh</span>
-              <b style={{ color: '#dc2626' }}>＋ Lập phiếu nhập</b>
+              <b style={{ color: 'var(--brand)', fontSize: 17 }}>＋ Lập phiếu nhập</b>
             </Link>
           </div>
 
@@ -355,7 +356,7 @@ export default function ReportsPage() {
                         <td><b>{ing.name}</b></td>
                         <td>{ing.unit}</td>
                         <td style={{ textAlign: 'right', fontWeight: 600 }}>{num(ing.stockQty)}</td>
-                        <td style={{ textAlign: 'right', color: '#64748b' }}>{num(ing.minStock)}</td>
+                        <td style={{ textAlign: 'right', color: 'var(--muted)' }}>{num(ing.minStock)}</td>
                         <td>
                           {isOut ? (
                             <span className="rep-tag red">Hết hàng</span>
@@ -384,7 +385,7 @@ export default function ReportsPage() {
           <div className="adm-stats">
             <div className="adm-stat">
               <span className="adm-muted">Tổng chi phí nhập hàng</span>
-              <b style={{ color: '#dc2626' }}>{vnd(purData.totalSpent)}</b>
+              <b style={{ color: 'var(--brand)' }}>{vnd(purData.totalSpent)}</b>
             </div>
             <div className="adm-stat">
               <span className="adm-muted">Tổng phiếu nhập</span>
@@ -410,13 +411,13 @@ export default function ReportsPage() {
                   {purData.bySupplier.map((s) => {
                     const pct = purData.totalSpent > 0 ? (Number(s.totalCost) / Number(purData.totalSpent)) * 100 : 0;
                     return (
-                      <div key={s.supplierId} style={{ borderBottom: '1px solid #f1f5f9', paddingBottom: 8 }}>
+                      <div key={s.supplierId} style={{ borderBottom: '1px solid var(--gray-bg)', paddingBottom: 8 }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
                           <span><strong>{s.supplierName}</strong> ({s.receiptCount} phiếu)</span>
                           <b>{vnd(s.totalCost)}</b>
                         </div>
-                        <div style={{ background: '#f1f5f9', borderRadius: 4, height: 6, overflow: 'hidden' }}>
-                          <div style={{ background: '#dc2626', height: '100%', width: `${pct}%` }}></div>
+                        <div style={{ background: 'var(--gray-bg)', borderRadius: 4, height: 6, overflow: 'hidden' }}>
+                          <div style={{ background: 'var(--brand)', height: '100%', width: `${pct}%` }}></div>
                         </div>
                       </div>
                     );
@@ -484,7 +485,7 @@ export default function ReportsPage() {
                         </td>
                         <td>{m.categoryName}</td>
                         <td style={{ textAlign: 'right' }}>{vnd(m.price)}</td>
-                        <td style={{ textAlign: 'right', fontWeight: 700, color: '#dc2626' }}>
+                        <td style={{ textAlign: 'right', fontWeight: 700, color: 'var(--brand)' }}>
                           {num(m.totalQuantitySold)} phần
                         </td>
                         <td style={{ textAlign: 'right', fontWeight: 700 }}>
@@ -519,7 +520,7 @@ export default function ReportsPage() {
                 </thead>
                 <tbody>
                   {stockList.map((s) => (
-                    <tr key={s.menuItemId} style={{ background: !s.hasEnoughStock ? '#fff5f5' : undefined }}>
+                    <tr key={s.menuItemId} style={{ background: !s.hasEnoughStock ? 'var(--red-bg)' : undefined }}>
                       <td>#{s.menuItemId}</td>
                       <td>
                         <b>{s.nameVi}</b>
@@ -541,7 +542,7 @@ export default function ReportsPage() {
                       </td>
                       <td>
                         {s.missingIngredients && s.missingIngredients.length > 0 ? (
-                          <span style={{ color: '#dc2626', fontSize: '0.85rem' }}>
+                          <span style={{ color: 'var(--brand)', fontSize: '0.85rem' }}>
                             {s.missingIngredients.join(', ')}
                           </span>
                         ) : (
@@ -561,22 +562,25 @@ export default function ReportsPage() {
       )}
 
       <style jsx>{`
+        .rep-chart-heading { display: flex; flex-wrap: wrap; gap: 16px; justify-content: space-between; align-items: center; margin-top: 22px; margin-bottom: 18px; }
+        .rep-chart-heading h3 { font-size: 14px; font-weight: 600; }
         .rep-tabs {
           display: flex;
           gap: 8px;
-          border-bottom: 2px solid #e2e8f0;
-          margin-bottom: 20px;
+          border-bottom: 1px solid var(--line);
+          margin-bottom: 26px;
           overflow-x: auto;
         }
         .rep-tab {
-          padding: 10px 18px;
+          padding: 14px 17px;
           border: none;
           background: none;
           font-weight: 600;
-          color: #64748b;
+          color: var(--muted);
           cursor: pointer;
-          border-bottom: 3px solid transparent;
-          margin-bottom: -2px;
+          border-bottom: 2px solid transparent;
+          margin-bottom: -1px;
+          font-size: 12px;
           display: flex;
           align-items: center;
           gap: 6px;
@@ -584,11 +588,11 @@ export default function ReportsPage() {
           transition: all 0.2s;
         }
         .rep-tab:hover {
-          color: #dc2626;
+          color: var(--brand);
         }
         .rep-tab.active {
-          color: #dc2626;
-          border-bottom-color: #dc2626;
+          color: var(--brand);
+          border-bottom-color: var(--brand);
         }
         .rep-badge {
           font-size: 0.75rem;
@@ -596,19 +600,19 @@ export default function ReportsPage() {
           border-radius: 999px;
           color: #fff;
         }
-        .rep-badge.warn { background: #d97706; }
-        .rep-badge.danger { background: #dc2626; }
+        .rep-badge.warn { background: var(--amber); }
+        .rep-badge.danger { background: var(--brand); }
         .rep-tag {
           display: inline-block;
           padding: 3px 8px;
           border-radius: 6px;
           font-size: 0.78rem;
-          font-weight: 700;
+          font-weight: 600;
         }
-        .rep-tag.green { background: #dcfce7; color: #15803d; }
-        .rep-tag.amber { background: #fef3c7; color: #b45309; }
-        .rep-tag.red { background: #fee2e2; color: #b91c1c; }
-        .rep-tag.gray { background: #f1f5f9; color: #475569; }
+        .rep-tag.green { background: var(--green-bg); color: var(--green); }
+        .rep-tag.amber { background: var(--amber-bg); color: var(--amber); }
+        .rep-tag.red { background: var(--red-bg); color: var(--red); }
+        .rep-tag.gray { background: var(--gray-bg); color: var(--gray); }
         .rep-rank {
           display: inline-flex;
           align-items: center;
@@ -617,12 +621,12 @@ export default function ReportsPage() {
           height: 26px;
           border-radius: 50%;
           font-weight: 700;
-          background: #f1f5f9;
-          color: #475569;
+          background: var(--gray-bg);
+          color: var(--gray);
         }
-        .rep-rank.top-1 { background: #fef08a; color: #854d0e; }
-        .rep-rank.top-2 { background: #e2e8f0; color: #334155; }
-        .rep-rank.top-3 { background: #ffedd5; color: #9a3412; }
+        .rep-rank.top-1 { background: #f1e5bd; color: #8a622d; }
+        .rep-rank.top-2 { background: var(--line); color: var(--ink); }
+        .rep-rank.top-3 { background: #f2e3d4; color: #9e5d37; }
 
         /* Kiểu dáng cho biểu đồ doanh thu */
         .rev-chart-wrap {
@@ -634,8 +638,8 @@ export default function ReportsPage() {
           align-items: flex-end;
           gap: 12px;
           min-width: 600px;
-          height: 200px;
-          border-bottom: 2px solid #e2e8f0;
+          height: 240px;
+          border-bottom: 1px solid var(--line);
           padding-bottom: 4px;
         }
         .rev-bar-col {
@@ -653,7 +657,7 @@ export default function ReportsPage() {
         }
         .rev-bar-val {
           font-size: 0.65rem;
-          color: #64748b;
+          color: var(--muted);
           margin-bottom: 4px;
           white-space: nowrap;
           text-align: center;
@@ -662,10 +666,10 @@ export default function ReportsPage() {
         .rev-bar-track {
           width: 100%;
           max-width: 24px;
-          height: 140px;
+          height: 170px;
           display: flex;
           align-items: flex-end;
-          background: #f8fafc;
+          background: #f6f8f2;
           border-radius: 4px 4px 0 0;
         }
         .rev-bar-fill {
@@ -675,7 +679,7 @@ export default function ReportsPage() {
         }
         .rev-bar-label {
           font-size: 0.7rem;
-          color: #64748b;
+          color: var(--muted);
           margin-top: 6px;
           white-space: nowrap;
         }

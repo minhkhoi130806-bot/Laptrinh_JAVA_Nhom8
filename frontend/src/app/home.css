@@ -1,0 +1,79 @@
+/* Editorial homepage, built on the shared shop design system. */
+.shop-home-hero { background: #f3eee5; isolation: isolate; min-height: 0; }
+.shop-home-hero::before { background: radial-gradient(ellipse at 4% 12%, #fffcf6 0%, transparent 60%); }
+.shop-home-grid { display: grid; grid-template-columns: 1.08fr 1fr; gap: clamp(32px, 5vw, 82px); align-items: center; padding-block: 56px 66px; }
+.shop-home-hero .shop-hero-content { width: auto; margin: 0; padding: 22px 0; }
+.shop-home-hero h1 { margin-top: 24px; font-size: clamp(56px, 5.9vw, 88px); font-weight: 500; line-height: 1.06; letter-spacing: -2.4px; }
+.shop-home-hero h1 em { color: var(--shop-red); }
+.shop-home-hero .shop-hero-content > p { max-width: 440px; margin-top: 26px; font-size: 14px; line-height: 1.95; }
+.shop-home-hero .shop-hero-actions { margin-top: 30px; gap: 22px; }
+.shop-home-hero .shop-hero-stats { margin-top: 44px; gap: 25px; }
+.shop-home-hero .shop-hero-stats b { font-family: var(--font-display); font-size: 24px; color: var(--shop-green); }
+.shop-home-hero .shop-hero-stats span { font-size: 10px; }
+.shop-home-visual { position: relative; margin: 0; min-width: 0; }
+.shop-home-photo { position: relative; margin: 0; min-height: 530px; aspect-ratio: .94; overflow: hidden; border-radius: 220px 220px 24px 24px; background: #253b30; box-shadow: 0 24px 55px #29372b1c; }
+.shop-home-photo > img { width: 100%; height: 100%; position: absolute; inset: 0; object-fit: cover; object-position: 56% 50%; }
+.shop-home-photo::after { content: ''; position: absolute; inset: 45% 0 0; background: linear-gradient(transparent, #10231de6); pointer-events: none; }
+.shop-home-photo figcaption { position: absolute; z-index: 1; left: 32px; right: 32px; bottom: 28px; color: #fff8ea; }
+.shop-home-photo figcaption > span { display: block; font-size: 9px; font-weight: 500; letter-spacing: 2.8px; color: #e8d1b0; }
+.shop-home-photo figcaption > p { margin-top: 7px; font-family: var(--font-display); font-size: 30px; line-height: 1.1; }
+.shop-home-seal { position: absolute; z-index: 2; right: -18px; top: 42px; width: 102px; height: 102px; border: 5px solid #f3eee5; border-radius: 50%; background: #a44332; color: #fff3df; display: flex; flex-direction: column; align-items: center; justify-content: center; transform: rotate(13deg); box-shadow: 0 5px 18px #503b2417; }
+.shop-home-seal > b { font-size: 38px; font-weight: 400; line-height: 1.2; }
+.shop-home-seal > small { font-size: 7px; letter-spacing: 2px; }
+.shop-home-caption { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-top: 16px; color: #7a766b; font-size: 9px; letter-spacing: 1.5px; }
+.shop-home-caption i { flex: 1; height: 1px; background: #d6cbbb; }
+.shop-home-caption > span:last-child { color: #a44332; letter-spacing: 2px; }
+.shop-home-ribbon { background: var(--shop-green); color: #e9e6d6; }
+.shop-home-ribbon .shop-container { display: flex; align-items: center; justify-content: space-between; gap: 22px; padding-block: 21px; }
+.shop-home-ribbon span { display: inline-flex; align-items: center; gap: 12px; font-size: 11px; }
+.shop-home-ribbon svg { color: #d2b083; width: 19px; height: 19px; }
+.shop-home-ribbon i { width: 4px; height: 4px; background: #c2a482; border-radius: 50%; }
+.shop-home-intro { padding-block: 90px; }
+.shop-home-intro .shop-intro-mark { font-size: 70px; color: #bfb6a0; }
+.shop-home-featured { position: relative; }
+.shop-home-featured .shop-menu-notice { display: flex; align-items: center; justify-content: center; gap: 14px; min-height: 140px; border-radius: 16px; line-height: 1.8; }
+.shop-home-featured .shop-menu-notice svg { color: var(--shop-red); }
+.shop-discovery-grid > a > span svg { width: 22px; height: 22px; }
+.shop-discovery-grid > a > i svg { width: 17px; height: 17px; }
+.shop-home-hero .shop-button svg, .shop-home-hero .shop-text-link svg { width: 17px; height: 17px; }
+@media (min-width: 1600px) { .shop-home-grid { padding-block: 72px 80px; } }
+@media (max-width: 1100px) {
+  .shop-home-grid { gap: 30px; }
+  .shop-home-hero h1 { font-size: clamp(52px, 6.2vw, 74px); }
+  .shop-home-photo { min-height: 480px; }
+  .shop-home-seal { right: -12px; width: 86px; height: 86px; top: 36px; }
+  .shop-home-seal > b { font-size: 31px; }
+  .shop-home-hero .shop-hero-stats { gap: 16px; }
+}
+@media (max-width: 760px) {
+  .shop-home-grid { grid-template-columns: 1fr; gap: 30px; padding-block: 34px 36px; }
+  .shop-home-hero .shop-hero-content { padding: 0; }
+  .shop-home-hero h1 { font-size: clamp(54px, 10vw, 78px); line-height: 1.04; letter-spacing: -1.7px; margin-top: 21px; }
+  .shop-home-hero .shop-hero-content > p { margin-top: 22px; font-size: 13px; max-width: 510px; }
+  .shop-home-hero .shop-hero-actions { gap: 22px; margin-top: 25px; }
+  .shop-home-hero .shop-hero-stats { margin-top: 29px; gap: 22px; }
+  .shop-home-hero .shop-hero-stats span { max-width: none; font-size: 10px; }
+  .shop-home-visual { width: 100%; max-width: 560px; justify-self: center; }
+  .shop-home-photo { min-height: 0; aspect-ratio: 1.22; border-radius: 160px 160px 18px 18px; }
+  .shop-home-photo > img { object-position: 50% 55%; }
+  .shop-home-photo figcaption { left: 23px; bottom: 22px; }
+  .shop-home-photo figcaption > p { font-size: 28px; }
+  .shop-home-seal { right: 0; top: 20px; }
+  .shop-home-caption { font-size: 8px; }
+  .shop-home-ribbon .shop-container { flex-wrap: wrap; justify-content: center; gap: 12px 22px; padding-block: 18px; }
+  .shop-home-ribbon span { font-size: 10px; gap: 8px; }
+  .shop-home-ribbon i { display: none; }
+  .shop-home-intro { padding-block: 58px; }
+  .shop-home-intro .shop-intro-mark { font-size: 40px; }
+}
+@media (max-width: 380px) {
+  .shop-home-hero h1 { font-size: 50px; }
+  .shop-home-hero .shop-hero-actions { gap: 16px; }
+  .shop-home-hero .shop-hero-stats { gap: 14px; }
+  .shop-home-hero .shop-hero-stats span { font-size: 9px; }
+  .shop-home-photo { aspect-ratio: 1.05; }
+}
+@media (max-width: 360px) {
+  .shop-home-hero h1 { font-size: 43px; letter-spacing: -1.1px; }
+  .shop-home-photo figcaption > p { font-size: 25px; }
+}

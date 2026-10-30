@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { FeedbackProvider } from './Feedback';
+import Icon from '@/components/ui/Icon';
 
 // Menu bên trái, chia nhóm. Thêm trang admin mới chỉ cần thêm 1 dòng ở đây.
 const NAV = [
@@ -163,7 +164,8 @@ export default function AdminShell({ children }) {
           {open && <div className="adm-scrim" onClick={() => setOpen(false)} />}
           <aside className={`adm-side ${open ? 'open' : ''}`}>
             <Link href="/admin" className="adm-brand" onClick={() => setOpen(false)}>
-              🍜 Nhà hàng Hàn<small>Trang quản trị · Nhóm 8</small>
+              <span className="adm-brand-mark" aria-hidden="true">한</span>
+              <span><b>HAN SEOUL</b><small>Không gian quản trị</small></span>
             </Link>
             {NAV.map((g, gi) => {
               const items = g.items.filter((item) => canAccess(item.href, user.role));
@@ -174,32 +176,31 @@ export default function AdminShell({ children }) {
                 {g.title && <div className="adm-nav-title">{g.title}</div>}
                 <nav className="adm-nav">
                   {items.map((i) => (
-                    <Link key={i.href} href={i.href} className={active(i) ? 'on' : ''} onClick={() => setOpen(false)}>
-                      <span>{i.icon}</span>{i.label}
+                    <Link key={i.href} href={i.href} className={active(i) ? 'on' : ''} aria-current={active(i) ? 'page' : undefined} onClick={() => setOpen(false)}>
+                      <Icon name={i.icon} size={18} />{i.label}
                     </Link>
                   ))}
                 </nav>
               </div>
               );
             })}
+            <div className="adm-side-footer"><i aria-hidden="true" />HAN SEOUL · KOREAN DINING</div>
           </aside>
           <main className="adm-main">
             <div className="adm-topbar">
-              <button className="adm-btn ghost sm adm-menu-toggle" onClick={() => setOpen(true)} aria-label="Mở menu">☰</button>
-              <b>🍜 Quản trị nhà hàng</b>
-              <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 12 }}>
+              <button className="adm-btn ghost sm adm-menu-toggle" onClick={() => setOpen(true)} aria-label="Mở menu"><Icon name="menu" size={19} /></button>
+              <div className="adm-topbar-title"><b>Quản trị nhà hàng</b><small>Han Seoul / Không gian làm việc</small></div>
+              <div className="adm-user">
                 {user ? (
                   <>
-                    <span className="adm-user-name" style={{ fontSize: 13, color: '#4b5563' }}>
-                      👤 <b>{user.fullName || user.username}</b> ({user.role})
-                    </span>
+                    <span className="adm-avatar"><Icon name="user" size={17} /></span>
+                    <span className="adm-user-name"><b>{user.fullName || user.username}</b><small>{user.role}</small></span>
                     <button
-                      className="adm-btn ghost sm"
+                      className="adm-btn ghost sm adm-logout"
                       onClick={handleLogout}
                       aria-label="Đăng xuất"
-                      style={{ color: '#ef4444', fontSize: 13 }}
                     >
-                      Đăng xuất
+                      <Icon name="logout" size={15} /><span>Đăng xuất</span>
                     </button>
                   </>
                 ) : (

@@ -1,11 +1,12 @@
 import './globals.css';
 import './shop.css';
+import './home.css';
 
 export const metadata = { title: 'Han Seoul | Korean Dining', description: 'Khám phá hương vị Hàn Quốc và đặt bàn tại Han Seoul.' };
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="vi">
+    <html lang="vi" data-scroll-behavior="smooth">
       <body>{children}</body>
     </html>
   );

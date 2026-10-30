@@ -4,15 +4,8 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 import { ROLES, STATUS } from '@/lib/constants';
-
-const inputStyle = {
-  width: '100%',
-  padding: '11px 12px',
-  border: '1px solid #dcdfe6',
-  borderRadius: 6,
-  fontSize: 14,
-  boxSizing: 'border-box',
-};
+import Icon from '@/components/ui/Icon';
+import '../../auth.css';
 
 export default function EmployeeAccessPage() {
   const router = useRouter();
@@ -132,124 +125,131 @@ export default function EmployeeAccessPage() {
   const isManager = user?.role === 'MANAGER';
 
   return (
-    <main style={{ minHeight: '100vh', background: '#f5f7fb', padding: 24, display: 'grid', placeItems: 'center' }}>
-      <section style={{ width: '100%', maxWidth: 520, background: '#fff', borderRadius: 12, padding: 28, boxShadow: '0 8px 24px rgba(0,0,0,.08)' }}>
-        <header style={{ marginBottom: 22, textAlign: 'center' }}>
-          <h1 style={{ margin: 0, fontSize: 25, color: '#1a1f36' }}>Cổng nhân viên nhà hàng</h1>
-          <p style={{ marginTop: 8, color: '#697386' }}>Đăng nhập để vào khu vực quản lý và làm việc.</p>
+    <main className="auth-page">
+      <aside className="auth-story">
+        <div className="auth-brand"><span className="auth-brand-mark" aria-hidden="true">한</span><div><b>HAN SEOUL</b><small>KOREAN DINING</small></div></div>
+        <div className="auth-story-content">
+          <span className="auth-kicker">THE HAN SEOUL TEAM</span>
+          <h2>Cùng nhau tạo nên<br/>{' '}những bữa ăn <em>đáng nhớ.</em></h2>
+          <p>Một đội ngũ tận tâm. Một không gian ấm áp.<br/>Một trải nghiệm trọn vẹn cho mỗi vị khách.</p>
+        </div>
+        <div className="auth-story-art" aria-hidden="true"><span className="auth-art-ring"/><span className="auth-art-ring auth-art-ring-inner"/><div className="auth-art-seal"><Icon name="bowl" size={64}/><span>정성 · 맛 · 함께</span></div><span className="auth-art-caption">PREPARED WITH CARE</span></div>
+        <div className="auth-story-footer"><span>HOSPITALITY, FROM THE HEART.</span><span>한 서울</span></div>
+      </aside>
+      <section className="auth-panel">
+        <div className="auth-panel-inner">
+        <header className="auth-heading">
+          <span className="auth-heading-icon"><Icon name="shield" size={23}/></span>
+          <span className="auth-kicker">KHÔNG GIAN LÀM VIỆC</span>
+          <h1>Cổng nhân viên nhà hàng</h1>
+          <p>Đăng nhập để vào khu vực quản lý và làm việc.</p>
         </header>
 
         {(error || message) && (
-          <div role={error ? 'alert' : 'status'} style={{
-            padding: '10px 14px',
-            marginBottom: 16,
-            borderRadius: 6,
-            color: error ? '#b42318' : '#067647',
-            background: error ? '#fef3f2' : '#ecfdf3',
-          }}>
+          <div role={error ? 'alert' : 'status'} className={`auth-notice ${error ? 'auth-notice-error' : 'auth-notice-success'}`}>
             {error || message}
           </div>
         )}
 
         {user ? (
           <>
-            <div style={{ padding: 14, background: '#f5f7fb', borderRadius: 8, marginBottom: 18 }}>
-              Đang đăng nhập: <b>{user.fullName || user.username}</b> ({user.role})
+            <div className="auth-session">
+              <span className="auth-session-icon"><Icon name="user" size={20}/></span><div><small>Đang đăng nhập</small><b>{user.fullName || user.username}</b> <span>({user.role})</span></div>
             </div>
             {isManager ? (
               <>
-                <h2 style={{ fontSize: 19, marginBottom: 6 }}>Đăng ký tài khoản nhân viên</h2>
-                <p style={{ color: '#697386', marginBottom: 16, fontSize: 14 }}>
+                <h2 className="auth-subheading">Đăng ký tài khoản nhân viên</h2>
+                <p className="auth-description">
                   Tạo hồ sơ nhân viên, tài khoản đăng nhập và quyền làm việc trong một bước.
                 </p>
-                <form onSubmit={registerEmployee}>
-                  <div style={{ display: 'grid', gap: 14 }}>
-                    <label>
+                <form onSubmit={registerEmployee} className="auth-form">
+                  <div className="auth-fields auth-fields-registration">
+                    <label className="auth-field">
                       Họ và tên
-                      <input style={inputStyle} required maxLength={100} value={employee.fullName}
+                      <input className="auth-input" required maxLength={100} value={employee.fullName}
                         onChange={(event) => setEmployee({ ...employee, fullName: event.target.value })} />
                     </label>
-                    <label>
+                    <label className="auth-field">
                       Tên đăng nhập
-                      <input style={inputStyle} required minLength={3} maxLength={50} pattern="[A-Za-z0-9._-]+"
+                      <input className="auth-input" required minLength={3} maxLength={50} pattern="[A-Za-z0-9._-]+"
                         value={employee.username}
                         onChange={(event) => setEmployee({ ...employee, username: event.target.value })} />
                     </label>
-                    <label>
+                    <label className="auth-field">
                       Mật khẩu (ít nhất 8 ký tự)
-                      <input style={inputStyle} type="password" required minLength={8} maxLength={72}
+                      <input className="auth-input" type="password" required minLength={8} maxLength={72}
                         value={employee.password}
                         onChange={(event) => setEmployee({ ...employee, password: event.target.value })} />
                     </label>
-                    <label>
+                    <label className="auth-field">
                       Số điện thoại
-                      <input style={inputStyle} type="tel" required maxLength={15} value={employee.phone}
+                      <input className="auth-input" type="tel" required maxLength={15} value={employee.phone}
                         onChange={(event) => setEmployee({ ...employee, phone: event.target.value })} />
                     </label>
-                    <label>
+                    <label className="auth-field">
                       Chức vụ và quyền
-                      <select style={inputStyle} value={employee.role}
+                      <select className="auth-input" value={employee.role}
                         onChange={(event) => setEmployee({ ...employee, role: event.target.value })}>
                         {ROLES.map((role) => (
                           <option key={role} value={role}>{STATUS[role][0]} ({role})</option>
                         ))}
                       </select>
                     </label>
-                    <label>
+                    <label className="auth-field">
                       Lương (₫)
-                      <input style={inputStyle} type="number" min="0" step="1000" required value={employee.salary}
+                      <input className="auth-input" type="number" min="0" step="1000" required value={employee.salary}
                         onChange={(event) => setEmployee({ ...employee, salary: event.target.value })} />
                     </label>
                   </div>
-                  <button type="submit" disabled={busy} style={{
-                    width: '100%', marginTop: 20, padding: 12, border: 0, borderRadius: 6,
-                    background: '#5469d4', color: '#fff', fontWeight: 600, cursor: busy ? 'wait' : 'pointer',
-                  }}>
+                  <button type="submit" disabled={busy} className="auth-submit">
                     {busy ? 'Đang đăng ký...' : 'Đăng ký tài khoản nhân viên'}
+                    <Icon name="arrowRight" size={19}/>
                   </button>
                 </form>
               </>
             ) : (
-              <p style={{ color: '#697386' }}>
+              <p className="auth-description">
                 Chỉ quản lý mới được đăng ký tài khoản mới hoặc đổi quyền. Liên hệ quản lý để được cấp tài khoản.
               </p>
             )}
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 20, fontSize: 14 }}>
-              <button type="button" onClick={() => router.push('/admin')} style={{ border: 0, background: 'none', color: '#5469d4', cursor: 'pointer' }}>
+            <div className="auth-session-actions">
+              <button type="button" onClick={() => router.push('/admin')} className="auth-link">
                 Vào trang làm việc
+                <Icon name="arrowUpRight" size={17}/>
               </button>
-              <button type="button" onClick={clearSession} style={{ border: 0, background: 'none', color: '#b42318', cursor: 'pointer' }}>
+              <button type="button" onClick={clearSession} className="auth-link auth-link-danger">
+                <Icon name="logout" size={17}/>
                 Đăng xuất
               </button>
             </div>
           </>
         ) : (
           <>
-            <form onSubmit={signIn}>
-              <div style={{ display: 'grid', gap: 16 }}>
-                <label>
+            <form onSubmit={signIn} className="auth-form">
+              <div className="auth-fields">
+                <label className="auth-field">
                   Tên đăng nhập
-                  <input style={inputStyle} required autoComplete="username" value={login.username}
+                  <input className="auth-input" placeholder="Tên đăng nhập của bạn" required autoComplete="username" value={login.username}
                     onChange={(event) => setLogin({ ...login, username: event.target.value })} />
                 </label>
-                <label>
+                <label className="auth-field">
                   Mật khẩu
-                  <input style={inputStyle} type="password" required autoComplete="current-password" value={login.password}
+                  <input className="auth-input" placeholder="Nhập mật khẩu" type="password" required autoComplete="current-password" value={login.password}
                     onChange={(event) => setLogin({ ...login, password: event.target.value })} />
                 </label>
               </div>
-              <button type="submit" disabled={busy} style={{
-                width: '100%', marginTop: 20, padding: 12, border: 0, borderRadius: 6,
-                background: '#5469d4', color: '#fff', fontWeight: 600, cursor: busy ? 'wait' : 'pointer',
-              }}>
+              <button type="submit" disabled={busy} className="auth-submit">
                 {busy ? 'Đang đăng nhập...' : 'Đăng nhập nhân viên'}
+                <Icon name="arrowRight" size={19}/>
               </button>
             </form>
-            <p style={{ marginTop: 16, fontSize: 13, color: '#697386', textAlign: 'center' }}>
+            <p className="auth-help">
               Chưa có tài khoản nhân viên? Liên hệ quản lý để được đăng ký và phân quyền.
             </p>
           </>
         )}
+        <footer className="auth-panel-footer"><span className="auth-footer-line"/><span>HAN SEOUL · KOREAN DINING</span><span className="auth-footer-line"/></footer>
+        </div>
       </section>
     </main>
   );

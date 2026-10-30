@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
+import Icon from '@/components/ui/Icon';
 
 const KEY = 'hanseoul:favorites';
 export function readFavorites() {
@@ -28,5 +29,5 @@ export default function FavoriteButton({ item, className = '' }) {
     saveFavorites(exists ? current.filter((row) => String(row.id) !== String(item.id)) : [...current, { id: item.id, nameVi: item.nameVi, nameKo: item.nameKo, price: item.price, imageUrl: item.imageUrl, description: item.description, spiceLevel: item.spiceLevel }]);
     setActive(!exists);
   };
-  return <button type="button" className={`shop-favorite-button ${active ? 'is-favorite' : ''} ${className}`} onClick={toggle} aria-label={active ? 'Bỏ khỏi món yêu thích' : 'Thêm vào món yêu thích'} title={active ? 'Bỏ yêu thích' : 'Yêu thích'}>{active ? '♥' : '♡'}</button>;
+  return <button type="button" className={`shop-favorite-button ${active ? 'is-favorite' : ''} ${className}`} onClick={toggle} aria-pressed={active} aria-label={active ? 'Bỏ khỏi món yêu thích' : 'Thêm vào món yêu thích'} title={active ? 'Bỏ yêu thích' : 'Yêu thích'}><Icon name="heart" size={20} fill={active ? 'currentColor' : 'none'}/></button>;
 }

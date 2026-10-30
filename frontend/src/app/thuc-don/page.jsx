@@ -56,7 +56,7 @@ export default function MenuPage() {
         </div>
       </div>
       {loading && <div className="shop-state"><span className="shop-spinner" />Đang tải thực đơn...</div>}
-      {error && <div className="shop-state shop-state-error"><b>Chưa thể tải thực đơn.</b><p>{error}</p><button onClick={() => location.reload()}>Thử lại</button><small>Hãy kiểm tra backend Spring Boot đang chạy tại cổng 8080.</small></div>}
+      {error && <div className="shop-state shop-state-error"><b>Chưa thể tải thực đơn.</b><p>{error}</p><button onClick={() => location.reload()}>Thử lại</button><small>Vui lòng kiểm tra kết nối hoặc thử lại sau ít phút.</small></div>}
       {!loading && !error && filtered.length === 0 && <div className="shop-empty"><span>🍽️</span><h3>Chưa tìm thấy món phù hợp</h3><p>Thử từ khóa khác hoặc chọn một danh mục khác nhé.</p><button onClick={() => { setQuery(''); setCategory('all'); setMaxPrice(''); setSort('featured'); }}>Xóa bộ lọc</button></div>}
       {!loading && !error && filtered.length > 0 && <div className="shop-menu-grid">{filtered.map((item) => <MenuCard key={item.id} item={item} />)}</div>}
     </section>

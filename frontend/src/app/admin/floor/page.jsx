@@ -8,6 +8,7 @@ import PageHeader from "@/components/admin/PageHeader";
 import StateBox from "@/components/admin/StateBox";
 import Badge from "@/components/admin/Badge";
 import { useToast } from "@/components/admin/Feedback";
+import Icon from "@/components/ui/Icon";
 
 const TABLE_STATUS_OPTIONS = [
   { value: "AVAILABLE", label: "Đánh dấu trống" },
@@ -217,7 +218,7 @@ export default function FloorPage() {
                   }}
                 >
                   <div>
-                    <div style={{ fontSize: 24 }}>🪑</div>
+                    <div style={{ color: tone }}><Icon name="table" size={29} /></div>
                     <h3 style={{ margin: "4px 0" }}>{table.tableCode}</h3>
                     <p className="adm-muted" style={{ margin: 0 }}>
                       {table.capacity} chỗ ngồi
@@ -259,7 +260,7 @@ export default function FloorPage() {
                   <div style={{ marginTop: 10 }}>
                     {activeOrders.map((o) => (
                       <div key={o.id} className="adm-muted">
-                        🧾{" "}
+                        <Icon name="receipt" size={13} />{" "}
                         <Link
                           className="adm-link"
                           href={`/admin/orders/${o.id}`}
