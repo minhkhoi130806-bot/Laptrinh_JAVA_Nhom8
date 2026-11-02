@@ -71,13 +71,18 @@ public class EmailServiceImpl implements EmailService {
             return;
         }
 
-        // Tập hợp danh sách người nhận (email của khách + email quản trị viên nếu có)
+        // Tập hợp danh sách người nhận (email của khách + các email quản trị viên nếu có)
         Set<String> recipients = new LinkedHashSet<>();
         if (order.getCustomerEmail() != null && !order.getCustomerEmail().isBlank() && isValidEmail(order.getCustomerEmail())) {
             recipients.add(order.getCustomerEmail().trim());
         }
-        if (adminEmail != null && !adminEmail.isBlank() && isValidEmail(adminEmail)) {
-            recipients.add(adminEmail.trim());
+        if (adminEmail != null && !adminEmail.isBlank()) {
+            for (String e : adminEmail.split("[,;]")) {
+                String trimmed = e.trim();
+                if (isValidEmail(trimmed)) {
+                    recipients.add(trimmed);
+                }
+            }
         }
 
         if (recipients.isEmpty()) {
@@ -315,7 +320,16 @@ public class EmailServiceImpl implements EmailService {
             result.put("message", "Chưa cấu hình spring.mail.password (hoặc biến MAIL_PASSWORD) trong application.properties. Bạn cần tạo Mật khẩu ứng dụng 16 ký tự tại https://myaccount.google.com/apppasswords");
             return result;
         }
-        if (toEmail == null || toEmail.isBlank() || !isValidEmail(toEmail)) {
+        List<String> targetList = new ArrayList<>();
+        if (toEmail != null) {
+            for (String t : toEmail.split("[,;]")) {
+                String trimmed = t.trim();
+                if (isValidEmail(trimmed)) {
+                    targetList.add(trimmed);
+                }
+            }
+        }
+        if (targetList.isEmpty()) {
             result.put("success", false);
             result.put("message", "Địa chỉ email nhận không hợp lệ: " + toEmail);
             return result;
@@ -327,18 +341,20 @@ public class EmailServiceImpl implements EmailService {
                 result.put("message", "mailSender chưa được khởi tạo. Hãy đảm bảo Spring Boot Mail Starter đã được nạp.");
                 return result;
             }
-            MimeMessage message = mailSender.createMimeMessage();
-            MimeMessageHelper helper = new MimeMessageHelper(message, StandardCharsets.UTF_8.name());
-            helper.setFrom(fromEmail, fromName);
-            helper.setTo(toEmail.trim());
-            helper.setSubject("[Han Seoul] Thử nghiệm gửi email hệ thống");
-            helper.setText("<h2>Xin chào!</h2><p>Hệ thống gửi email của nhà hàng Hàn Quốc <strong>Han Seoul</strong> đã hoạt động chính xác.</p><p>Thời gian thử nghiệm: " + LocalDateTime.now().format(DATE_FORMAT) + "</p>", true);
+            for (String recipient : targetList) {
+                MimeMessage message = mailSender.createMimeMessage();
+                MimeMessageHelper helper = new MimeMessageHelper(message, StandardCharsets.UTF_8.name());
+                helper.setFrom(fromEmail, fromName);
+                helper.setTo(recipient);
+                helper.setSubject("[Han Seoul] Thử nghiệm gửi email hệ thống");
+                helper.setText("<h2>Xin chào!</h2><p>Hệ thống gửi email của nhà hàng Hàn Quốc <strong>Han Seoul</strong> đã hoạt động chính xác.</p><p>Thời gian thử nghiệm: " + LocalDateTime.now().format(DATE_FORMAT) + "</p>", true);
 
-            mailSender.send(message);
+                mailSender.send(message);
+            }
             result.put("success", true);
-            result.put("message", "Đã gửi email thử nghiệm thành công tới " + toEmail + "! Hãy kiểm tra Hộp thư đến (Inbox) hoặc Thư rác (Spam).");
+            result.put("message", "Đã gửi email thử nghiệm thành công tới: " + String.join(", ", targetList) + "! Hãy kiểm tra Hộp thư đến (Inbox) hoặc Thư rác (Spam).");
             result.put("from", fromEmail);
-            result.put("to", toEmail);
+            result.put("to", targetList);
         } catch (Exception e) {
             log.error("Lỗi khi gửi email thử nghiệm: {}", e.getMessage(), e);
             result.put("success", false);

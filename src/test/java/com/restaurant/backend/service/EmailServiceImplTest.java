@@ -127,4 +127,29 @@ class EmailServiceImplTest {
         // Đã gửi tới 2 người: khách hàng (customer@gmail.com) và admin (admin@gmail.com)
         assertEquals(2, mailSender.sentMessages.size());
     }
+
+    @Test
+    @DisplayName("Gửi email thành công cho cả khách hàng và NHIỀU quản trị viên qua dấu phẩy")
+    void shouldSendToMultipleAdminEmails() {
+        RecordingMailSender mailSender = new RecordingMailSender();
+        EmailServiceImpl emailService = new EmailServiceImpl(createFakeMenuItemRepo());
+
+        ReflectionTestUtils.setField(emailService, "mailEnabled", true);
+        ReflectionTestUtils.setField(emailService, "mailSender", mailSender);
+        ReflectionTestUtils.setField(emailService, "fromEmail", "restaurant@gmail.com");
+        ReflectionTestUtils.setField(emailService, "mailPassword", "someAppPassword123");
+        ReflectionTestUtils.setField(emailService, "adminEmail", "minhkhoi130806@gmail.com, second_admin@gmail.com, third@gmail.com");
+        ReflectionTestUtils.setField(emailService, "fromName", "Han Seoul");
+
+        Order order = new Order();
+        order.setId(103);
+        order.setCustomerEmail("customer@gmail.com");
+        Invoice invoice = new Invoice();
+        invoice.setId(51);
+
+        assertDoesNotThrow(() -> emailService.sendPaymentSuccessEmail(order, invoice, List.of()));
+
+        // Đã gửi tới 4 người: khách hàng + 3 admin
+        assertEquals(4, mailSender.sentMessages.size());
+    }
 }
