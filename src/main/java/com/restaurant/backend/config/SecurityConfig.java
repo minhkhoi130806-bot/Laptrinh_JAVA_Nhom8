@@ -128,7 +128,7 @@ public class SecurityConfig {
                 .requestMatchers("/actuator/health", "/actuator/health/**", "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                 // Khách chưa đăng nhập chỉ được kiểm tra bàn trống và gửi yêu cầu đặt bàn.
                 .requestMatchers(HttpMethod.GET, "/api/reservations/available-tables").permitAll()
-                .requestMatchers("/api/customers/public-**", "/api/customers/public-register", "/api/customers/public-register/**", "/api/customers/public-login", "/api/customers/public-login/**", "/api/customers/send-registration-otp", "/api/customers/verify-registration-otp", "/api/customers/public-send-otp", "/api/customers/public-verify-otp").permitAll()
+                .requestMatchers("/error", "/error/**", "/api/customers/public-**", "/api/customers/public-register", "/api/customers/public-register/**", "/api/customers/public-login", "/api/customers/public-login/**", "/api/customers/send-registration-otp", "/api/customers/verify-registration-otp", "/api/customers/public-send-otp", "/api/customers/public-verify-otp").permitAll()
                 .requestMatchers("/api/reservations/public", "/api/reservations/public/**").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/contact", "/api/event-inquiries", "/api/public-orders").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/public-orders/**").permitAll()

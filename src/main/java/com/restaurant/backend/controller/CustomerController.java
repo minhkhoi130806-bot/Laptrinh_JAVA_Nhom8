@@ -127,8 +127,13 @@ public class CustomerController {
         String finalName = fullName != null && !fullName.isBlank() ? fullName.trim() : (entry != null ? entry.fullName() : "Hội viên");
         String finalPhone = phone != null && !phone.isBlank() ? phone.trim().replaceAll("[ .-]", "") : (entry != null ? entry.phone() : "");
 
-        CustomerRequest request = new CustomerRequest(finalName, finalPhone, cleanEmail);
-        Customer created = customerService.create(customerMapper.toEntity(request));
+        Customer customer = new Customer();
+        customer.setFullName(finalName);
+        customer.setPhone(finalPhone);
+        customer.setEmail(cleanEmail);
+        customer.setLoyaltyPoints(50);
+        customer.setDeleted(false);
+        Customer created = customerService.create(customer);
 
         // Gửi email chào mừng thành viên mới
         emailService.sendCustomerWelcomeEmail(created);
