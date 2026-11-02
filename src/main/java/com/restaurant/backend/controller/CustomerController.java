@@ -45,7 +45,7 @@ public class CustomerController {
      * Bước 1: Gửi mã OTP xác thực qua Gmail khi khách hàng đăng ký hội viên mới.
      * POST /api/customers/send-registration-otp
      */
-    @PostMapping({"/send-registration-otp", "/public-send-otp"})
+    @PostMapping({"/send-registration-otp", "/public-send-otp", "/public-register/send-otp"})
     public Map<String, Object> sendRegistrationOtp(@RequestBody Map<String, String> body) {
         String email = body.get("email");
         String fullName = body.get("fullName");
@@ -90,7 +90,7 @@ public class CustomerController {
      * Bước 2: Xác nhận mã OTP và hoàn tất tạo tài khoản hội viên.
      * POST /api/customers/verify-registration-otp
      */
-    @PostMapping({"/verify-registration-otp", "/public-verify-otp"})
+    @PostMapping({"/verify-registration-otp", "/public-verify-otp", "/public-register/verify-otp"})
     @ResponseStatus(HttpStatus.CREATED)
     public CustomerResponse verifyRegistrationOtp(@RequestBody Map<String, String> body) {
         String email = body.get("email");
