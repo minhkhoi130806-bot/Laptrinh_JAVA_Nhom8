@@ -118,19 +118,38 @@ export default function RegisterPage() {
                 <p style={{ margin: '4px 0', color: '#c53030' }}>• <b>Điểm thưởng khởi đầu:</b> +50 điểm chào mừng</p>
                 <p style={{ margin: '4px 0', color: '#276749' }}>• <b>Ưu đãi:</b> Giảm ngay 10% cho đơn hàng trực tuyến đầu tiên.</p>
               </div>
-              <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', flexWrap: 'wrap' }}>
-                {redirectUrl ? (
-                  <Link className="shop-button" href={redirectUrl}>
-                    Tiếp tục đơn hàng đang đặt <Icon name="arrowUpRight" size={17} />
-                  </Link>
-                ) : (
-                  <Link className="shop-button" href="/thuc-don">
-                    Khám phá thực đơn & Đặt món <Icon name="arrowUpRight" size={17} />
-                  </Link>
-                )}
-                <Link className="shop-outline-link" href="/tai-khoan">
-                  Xem trang cá nhân
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '20px' }}>
+                <Link
+                  className="shop-button"
+                  href="/"
+                  style={{
+                    width: '100%',
+                    justifyContent: 'center',
+                    fontSize: '15px',
+                    padding: '14px 20px',
+                    borderRadius: '10px',
+                    background: '#8B2500',
+                    color: '#ffffff',
+                    fontWeight: 700,
+                  }}
+                >
+                  Vào trang web khám phá ngay <Icon name="arrowUpRight" size={18} />
                 </Link>
+
+                <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', flexWrap: 'wrap', marginTop: '4px' }}>
+                  {redirectUrl ? (
+                    <Link className="shop-button shop-button-light" href={redirectUrl}>
+                      Tiếp tục đơn hàng đang đặt ↗
+                    </Link>
+                  ) : (
+                    <Link className="shop-button shop-button-light" href="/thuc-don">
+                      Khám phá thực đơn ↗
+                    </Link>
+                  )}
+                  <Link className="shop-outline-link" href="/tai-khoan">
+                    Vào trang cá nhân của bạn ↗
+                  </Link>
+                </div>
               </div>
             </div>
           ) : (
@@ -256,14 +275,35 @@ export default function RegisterPage() {
                 </button>
               </div>
 
-              <div style={{ marginTop: '18px', textAlign: 'center', fontSize: '13.5px', color: '#718096' }}>
-                Đã có tài khoản hội viên?{' '}
+              <div
+                style={{
+                  marginTop: '18px',
+                  paddingTop: '16px',
+                  borderTop: '1px dashed #e2e8f0',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  fontSize: '13.5px',
+                  color: '#718096',
+                  flexWrap: 'wrap',
+                  gap: '10px',
+                }}
+              >
                 <Link
-                  href={`/dang-nhap${redirectUrl ? `?redirect=${encodeURIComponent(redirectUrl)}` : ''}`}
-                  style={{ color: '#8B2500', fontWeight: 650 }}
+                  href="/"
+                  style={{ color: '#718096', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
                 >
-                  Đăng nhập ngay ↗
+                  ← Vào trang web
                 </Link>
+                <span>
+                  Đã có tài khoản?{' '}
+                  <Link
+                    href={`/dang-nhap${redirectUrl ? `?redirect=${encodeURIComponent(redirectUrl)}` : ''}`}
+                    style={{ color: '#8B2500', fontWeight: 650 }}
+                  >
+                    Đăng nhập ngay ↗
+                  </Link>
+                </span>
               </div>
             </form>
           )}

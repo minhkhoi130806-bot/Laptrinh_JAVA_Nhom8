@@ -158,18 +158,30 @@ export default function LoginPage() {
                 marginTop: '22px',
                 paddingTop: '18px',
                 borderTop: '1px dashed #e2e8f0',
-                textAlign: 'center',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
                 fontSize: '13.5px',
                 color: '#718096',
+                flexWrap: 'wrap',
+                gap: '10px',
               }}
             >
-              Chưa có tài khoản hội viên?{' '}
               <Link
-                href={`/dang-ky${redirectUrl ? `?redirect=${encodeURIComponent(redirectUrl)}` : ''}`}
-                style={{ color: '#8B2500', fontWeight: 700 }}
+                href="/"
+                style={{ color: '#718096', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
               >
-                Đăng ký ngay (30 giây) ↗
+                ← Vào trang web
               </Link>
+              <span>
+                Chưa có tài khoản?{' '}
+                <Link
+                  href={`/dang-ky${redirectUrl ? `?redirect=${encodeURIComponent(redirectUrl)}` : ''}`}
+                  style={{ color: '#8B2500', fontWeight: 700 }}
+                >
+                  Đăng ký ngay (30 giây) ↗
+                </Link>
+              </span>
             </div>
           </form>
         </div>

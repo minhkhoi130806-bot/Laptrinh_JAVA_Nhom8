@@ -23,6 +23,11 @@ public interface OrderRepository extends JpaRepository<Order, Integer> {
     List<Order> findByCustomerIdOrderByIdDesc(Integer customerId);
 
     /**
+     * Tìm danh sách đơn hàng theo số điện thoại khách hàng (sắp xếp đơn mới nhất lên đầu)
+     */
+    List<Order> findByCustomerPhoneOrderByIdDesc(String customerPhone);
+
+    /**
      * Tìm các đơn hàng theo trạng thái cụ thể (ví dụ: "OPEN", "PAID"...)
      */
     List<Order> findByStatus(String status);

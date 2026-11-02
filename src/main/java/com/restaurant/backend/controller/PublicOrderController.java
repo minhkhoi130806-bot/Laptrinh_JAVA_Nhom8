@@ -7,6 +7,7 @@ import com.restaurant.backend.entity.OrderItem;
 import com.restaurant.backend.exception.BadRequestException;
 import com.restaurant.backend.mapper.OrderItemMapper;
 import com.restaurant.backend.repository.CustomerRepository;
+import com.restaurant.backend.repository.OrderRepository;
 import com.restaurant.backend.service.OrderItemService;
 import com.restaurant.backend.service.OrderService;
 import jakarta.validation.Valid;
@@ -26,16 +27,19 @@ public class PublicOrderController {
     private final OrderItemService orderItemService;
     private final OrderItemMapper orderItemMapper;
     private final CustomerRepository customerRepository;
+    private final OrderRepository orderRepository;
 
     public PublicOrderController(
             OrderService orderService,
             OrderItemService orderItemService,
             OrderItemMapper orderItemMapper,
-            CustomerRepository customerRepository) {
+            CustomerRepository customerRepository,
+            OrderRepository orderRepository) {
         this.orderService = orderService;
         this.orderItemService = orderItemService;
         this.orderItemMapper = orderItemMapper;
         this.customerRepository = customerRepository;
+        this.orderRepository = orderRepository;
     }
 
     @PostMapping
@@ -100,5 +104,53 @@ public class PublicOrderController {
         Map<Integer, OrderTotals> totals = orderService.totals(List.of(id));
         OrderTotals amount = totals.getOrDefault(id, OrderTotals.EMPTY);
         return new PublicOrderCreatedResponse(order.getId(), order.getStatus(), order.getCreatedAt(), amount.total(), order.getCustomerName(), order.getCustomerPhone(), order.getCustomerEmail(), order.getOrderType(), order.getPaymentPreference(), items);
+    }
+
+    /**
+     * Tra cứu lịch sử đặt món của khách hàng theo số điện thoại hoặc customerId.
+     * GET /api/public-orders/history?phone=0912345678
+     */
+    @GetMapping("/history")
+    @Transactional(readOnly = true)
+    public List<PublicOrderCreatedResponse> getHistory(
+            @RequestParam(required = false) String phone,
+            @RequestParam(required = false) Integer customerId) {
+        if ((phone == null || phone.isBlank()) && customerId == null) {
+            return List.of();
+        }
+        List<Order> orders = new ArrayList<>();
+        if (customerId != null) {
+            orders.addAll(orderRepository.findByCustomerIdOrderByIdDesc(customerId));
+        }
+        if (phone != null && !phone.isBlank()) {
+            String clean = phone.trim().replaceAll("[ .-]", "");
+            List<Order> byPhone = orderRepository.findByCustomerPhoneOrderByIdDesc(clean);
+            if (byPhone.isEmpty() && !clean.equals(phone.trim())) {
+                byPhone = orderRepository.findByCustomerPhoneOrderByIdDesc(phone.trim());
+            }
+            for (Order o : byPhone) {
+                if (orders.stream().noneMatch(existing -> existing.getId().equals(o.getId()))) {
+                    orders.add(o);
+                }
+            }
+        }
+        // Sắp xếp đơn mới nhất lên đầu
+        orders.sort((a, b) -> Integer.compare(b.getId(), a.getId()));
+
+        List<Integer> ids = orders.stream().map(Order::getId).toList();
+        Map<Integer, OrderTotals> totals = orderService.totals(ids);
+        List<PublicOrderCreatedResponse> response = new ArrayList<>();
+        for (Order o : orders) {
+            List<OrderItemResponse> items = orderItemService.getByOrderId(o.getId()).stream()
+                    .map(orderItemMapper::toResponse)
+                    .toList();
+            OrderTotals amount = totals.getOrDefault(o.getId(), OrderTotals.EMPTY);
+            response.add(new PublicOrderCreatedResponse(
+                    o.getId(), o.getStatus(), o.getCreatedAt(), amount.total(),
+                    o.getCustomerName(), o.getCustomerPhone(), o.getCustomerEmail(),
+                    o.getOrderType(), o.getPaymentPreference(), items
+            ));
+        }
+        return response;
     }
 }
