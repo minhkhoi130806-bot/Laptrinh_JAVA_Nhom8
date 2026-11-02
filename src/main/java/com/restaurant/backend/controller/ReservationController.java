@@ -93,9 +93,29 @@ public class ReservationController {
                 customer = customerRepository.save(customer);
             }
         }
+        String combinedNote = request.note();
+        if (request.preOrderItems() != null && !request.preOrderItems().isEmpty()) {
+            StringBuilder sb = new StringBuilder();
+            sb.append("Món đặt trước: ");
+            for (int i = 0; i < request.preOrderItems().size(); i++) {
+                var item = request.preOrderItems().get(i);
+                if (i > 0) sb.append(", ");
+                sb.append(item.quantity() != null ? item.quantity() : 1)
+                  .append("x ")
+                  .append(item.itemName() != null ? item.itemName() : "Món");
+            }
+            if (request.note() != null && !request.note().isBlank()) {
+                sb.append(" | Ghi chú: ").append(request.note().trim());
+            }
+            combinedNote = sb.toString();
+            if (combinedNote.length() > 250) {
+                combinedNote = combinedNote.substring(0, 247) + "...";
+            }
+        }
+
         ReservationRequest reservationRequest = new ReservationRequest(
                 customer.getId(), request.tableId(), request.reservedAt(),
-                request.guestCount(), request.note()
+                request.guestCount(), combinedNote
         );
         return reservationMapper.toResponse(reservationService.create(reservationRequest));
     }

@@ -10,10 +10,11 @@ import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 /**
  * Yêu cầu đặt bàn từ trang công khai của khách hàng.
- * Không yêu cầu khách biết customerId; hệ thống tìm/tạo khách bằng số điện thoại.
+ * Cho phép kèm theo danh sách món ăn đặt trước (tùy chọn).
  */
 public record PublicReservationRequest(
         @NotBlank(message = "Vui lòng nhập họ tên")
@@ -40,7 +41,16 @@ public record PublicReservationRequest(
         @NotNull(message = "Vui lòng chọn bàn")
         Long tableId,
 
-        @Size(max = 255, message = "Ghi chú tối đa 255 ký tự")
-        String note
+        @Size(max = 500, message = "Ghi chú tối đa 500 ký tự")
+        String note,
+
+        // Danh sách món đặt trước nếu khách chọn thêm món (tùy chọn, có thể null hoặc rỗng)
+        List<PreOrderItemDto> preOrderItems
 ) {
+    public record PreOrderItemDto(
+            Long menuItemId,
+            String itemName,
+            Integer quantity,
+            Double price
+    ) {}
 }

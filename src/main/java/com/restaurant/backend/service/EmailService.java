@@ -34,6 +34,11 @@ public interface EmailService {
     void sendReservationConfirmationEmail(Reservation reservation);
 
     /**
+     * Gửi mã OTP xác thực đăng ký hội viên qua Gmail tới khách hàng.
+     */
+    void sendRegistrationOtpEmail(String toEmail, String fullName, String otpCode);
+
+    /**
      * Gửi email kiểm tra cấu hình SMTP trực tiếp và trả về chi tiết thành công/lỗi.
      */
     Map<String, Object> testSendEmail(String toEmail);

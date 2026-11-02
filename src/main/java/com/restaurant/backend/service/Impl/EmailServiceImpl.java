@@ -853,4 +853,107 @@ public class EmailServiceImpl implements EmailService {
                 .replace("{{NOTE}}", safeNote);
     }
 
+    @Override
+    @Async
+    public void sendRegistrationOtpEmail(String toEmail, String fullName, String otpCode) {
+        if (!mailEnabled) {
+            log.info("Tính năng gửi email đang bị tắt (app.mail.enabled=false). Bỏ qua gửi email OTP tới {}", toEmail);
+            return;
+        }
+
+        if (mailSender == null || fromEmail == null || fromEmail.isBlank() || mailPassword == null || mailPassword.isBlank()) {
+            log.warn("Gmail SMTP chưa được cấu hình. Bỏ qua gửi email OTP tới {}. Mã OTP dev: {}", toEmail, otpCode);
+            return;
+        }
+
+        if (toEmail == null || !isValidEmail(toEmail.trim())) {
+            log.warn("Địa chỉ email không hợp lệ: {}. Bỏ qua gửi email OTP.", toEmail);
+            return;
+        }
+
+        String subject = "[Han Seoul] " + otpCode + " là mã xác thực đăng ký hội viên của bạn";
+        String html = buildOtpEmailHtml(fullName, otpCode);
+
+        try {
+            MimeMessage message = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, StandardCharsets.UTF_8.name());
+            helper.setFrom(fromEmail, fromName);
+            helper.setTo(toEmail.trim());
+            helper.setSubject(subject);
+            helper.setText(html, true);
+            mailSender.send(message);
+            log.info("ĐÃ GỬI MÃ OTP XÁC THỰC ({}) tới Gmail: {}", otpCode, toEmail);
+        } catch (Exception e) {
+            log.error("Lỗi khi gửi email OTP tới {}: {}", toEmail, e.getMessage());
+        }
+    }
+
+    private String buildOtpEmailHtml(String fullName, String otpCode) {
+        String safeName = fullName != null && !fullName.isBlank() ? escapeHtml(fullName.trim()) : "Quý khách";
+        String template = """
+            <!DOCTYPE html>
+            <html lang="vi">
+            <head>
+              <meta charset="UTF-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1.0">
+              <title>Mã xác thực đăng ký hội viên</title>
+            </head>
+            <body style="margin: 0; padding: 0; background-color: #f7fafc; font-family: 'Segoe UI', Arial, Tahoma, Helvetica, sans-serif; color: #2d3748; line-height: 1.6;">
+              <div style="max-width: 580px; margin: 30px auto; background: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05); border: 1px solid #edf2f7;">
+                
+                <!-- Header -->
+                <div style="background: linear-gradient(135deg, #8B2500 0%, #b83a1b 100%); color: #ffffff; padding: 28px 24px; text-align: center;">
+                  <span style="display: inline-block; background: rgba(255,255,255,0.2); padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 8px;">
+                    HAN SEOUL VERIFICATION
+                  </span>
+                  <h1 style="margin: 0; font-size: 22px; font-weight: 700; letter-spacing: -0.5px;">XÁC THỰC ĐĂNG KÝ HỘI VIÊN</h1>
+                  <p style="margin: 6px 0 0; font-size: 13.5px; opacity: 0.9;">Nhà hàng Ẩm thực Hàn Quốc Han Seoul</p>
+                </div>
+
+                <!-- Body -->
+                <div style="padding: 28px 24px;">
+                  <p style="font-size: 16px; margin: 0 0 14px; color: #1a202c;">
+                    Xin chào <strong>{{NAME}}</strong>,
+                  </p>
+                  <p style="font-size: 14px; color: #4a5568; margin: 0 0 20px;">
+                    Cảm ơn bạn đã lựa chọn đăng ký tài khoản thành viên tại <strong>Han Seoul</strong>. Để kích hoạt tài khoản và nhận ngay <strong>50 điểm thưởng & ưu đãi giảm 10%</strong>, vui lòng sử dụng mã xác thực bên dưới:
+                  </p>
+
+                  <!-- OTP BOX -->
+                  <div style="background: #fffaf0; border: 2px dashed #dd6b20; border-radius: 12px; padding: 20px; text-align: center; margin: 24px 0;">
+                    <div style="font-size: 12px; font-weight: 700; color: #7b341e; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 8px;">
+                      MÃ XÁC THỰC OTP CỦA BẠN
+                    </div>
+                    <div style="font-size: 36px; font-weight: 800; letter-spacing: 8px; color: #8B2500; font-family: monospace; padding: 6px 0;">
+                      {{OTP}}
+                    </div>
+                    <div style="font-size: 12.5px; color: #718096; margin-top: 8px;">
+                      ⏰ Mã có hiệu lực trong vòng <strong>5 phút</strong>
+                    </div>
+                  </div>
+
+                  <!-- Cảnh báo an toàn -->
+                  <div style="background-color: #ebf8ff; border-left: 4px solid #3182ce; padding: 12px 16px; border-radius: 4px; margin-bottom: 20px; font-size: 13px; color: #2b6cb0;">
+                    ✦ <strong>Lưu ý bảo mật:</strong> Vui lòng không chia sẻ mã xác thực này cho bất kỳ ai. Nhân viên Han Seoul sẽ không bao giờ hỏi mã OTP của bạn.
+                  </div>
+
+                  <p style="font-size: 13px; color: #718096; margin: 0;">
+                    Nếu bạn không yêu cầu đăng ký tài khoản tại Han Seoul, xin vui lòng bỏ qua email này.
+                  </p>
+                </div>
+
+                <!-- Footer -->
+                <div style="background-color: #edf2f7; padding: 16px 24px; text-align: center; font-size: 12px; color: #718096;">
+                  <p style="margin: 0 0 4px; font-weight: 600; color: #4a5568;">Nhà hàng Hàn Quốc Han Seoul</p>
+                  <p style="margin: 0 0 4px;">Ẩm thực chuẩn vị truyền thống Hàn Quốc · Hotline: 0900 000 888</p>
+                  <p style="margin: 0; font-size: 11px; color: #a0aec0;">Email này được gửi tự động, vui lòng không phản hồi trực tiếp.</p>
+                </div>
+
+              </div>
+            </body>
+            </html>
+            """ ;
+
+        return template.replace("{{NAME}}", safeName).replace("{{OTP}}", otpCode);
+    }
 }
