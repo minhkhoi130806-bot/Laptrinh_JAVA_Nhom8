@@ -60,6 +60,7 @@ public class EmailServiceImpl implements EmailService {
         this(menuItemRepository, null);
     }
 
+    @Autowired
     public EmailServiceImpl(MenuItemRepository menuItemRepository, CustomerRepository customerRepository) {
         this.menuItemRepository = menuItemRepository;
         this.customerRepository = customerRepository;
