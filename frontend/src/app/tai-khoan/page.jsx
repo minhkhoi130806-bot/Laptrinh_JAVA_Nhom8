@@ -99,11 +99,14 @@ export default function AccountPage() {
                 <span className="shop-eyebrow">KHÁCH HÀNG THÂN THIẾT</span>
                 <h2 className="account-user-name">Chào mừng quý khách!</h2>
                 <p className="account-guest-desc">
-                  Đăng ký thành viên Han Seoul ngay để tự động nhận hóa đơn điện tử qua Gmail, tích điểm thưởng và tận hưởng các ưu đãi ẩm thực Hàn Quốc độc quyền.
+                  Đăng nhập hoặc đăng ký thành viên Han Seoul ngay để nhận 50 điểm thưởng, giảm 10% đơn hàng và tự động nhận hóa đơn điện tử qua Gmail.
                 </p>
-                <div className="account-actions-wrap">
-                  <Link className="shop-button account-register-btn" href="/dang-ky">
-                    Đăng ký thành viên ngay <Icon name="arrowUpRight" size={17} />
+                <div className="account-actions-wrap" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <Link className="shop-button" href="/dang-nhap" style={{ justifyContent: 'center' }}>
+                    Đăng nhập hội viên <Icon name="arrowUpRight" size={17} />
+                  </Link>
+                  <Link className="shop-outline-link" href="/dang-ky" style={{ justifyContent: 'center' }}>
+                    Chưa có tài khoản? Đăng ký ngay ↗
                   </Link>
                 </div>
               </>

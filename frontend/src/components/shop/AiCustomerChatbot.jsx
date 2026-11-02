@@ -75,32 +75,31 @@ function generateAiReply(query, userName) {
     q.includes('hóa đơn')
   ) {
     return {
-      text: `${greeting}Khi đăng ký thành viên tại Han Seoul, bạn sẽ nhận ngay 3 đặc quyền:
-• 📧 **Hóa đơn điện tử qua Gmail:** Mỗi lần thanh toán đơn hàng (ZaloPay, VNPay, MoMo, Tiền mặt), hóa đơn chi tiết tự động gửi về email của bạn.
-• ⭐ **Tích lũy điểm thưởng:** Cứ 10.000 ₫ chi tiêu được tích lũy 1 điểm thưởng để đổi ưu đãi.
-• 🎁 **Nhận email chào mừng:** Kèm thông tin tài khoản thành viên ngay khi đăng ký hoàn tất.`,
+      text: `${greeting}Khi đăng ký thành viên tại Han Seoul, bạn sẽ nhận ngay 4 đặc quyền:
+• 🎁 **Tặng ngay 50 điểm thưởng chào mừng** được cộng thẳng vào tài khoản.
+• 🏷️ **Giảm giá 10%** cho đơn hàng đặt món trực tuyến đầu tiên.
+• 📧 **Hóa đơn điện tử qua Gmail:** Mỗi lần thanh toán đơn trực tuyến (ZaloPay, VNPay), hóa đơn chi tiết tự động gửi về Gmail của bạn.
+• ⭐ **Tích lũy điểm đổi quà:** Cứ mỗi 10.000 ₫ thanh toán được tích lũy 1 điểm thưởng.`,
       action: { href: '/dang-ky', label: 'Đăng ký thành viên (30 giây) ↗' },
     };
   }
 
-  // 4. Thanh toán online: ZaloPay, VNPay, MoMo
+  // 4. Thanh toán online: ZaloPay, VNPay
   if (
     q.includes('thanh toán') ||
     q.includes('zalopay') ||
     q.includes('vnpay') ||
-    q.includes('momo') ||
     q.includes('tiền mặt') ||
     q.includes('chuyển khoản') ||
     q.includes('ngân hàng') ||
     q.includes('qr')
   ) {
     return {
-      text: `${greeting}Han Seoul hỗ trợ đa dạng phương thức thanh toán an toàn, bảo mật cao:
+      text: `${greeting}Han Seoul hỗ trợ các phương thức thanh toán an toàn, bảo mật cao:
 • 📱 **Ví ZaloPay:** Quét mã QR tiện lợi, liên kết ví ZaloPay và thẻ ngân hàng.
 • 💳 **Cổng VNPay:** Hỗ trợ quét mã VNPAY-QR từ hơn 40 ứng dụng ngân hàng, thẻ ATM, Visa, MasterCard.
-• 👛 **Ví MoMo:** Thanh toán siêu tốc qua ứng dụng MoMo.
-• 💵 **Tiền mặt / Chuyển khoản:** Thanh toán linh hoạt tại quầy hoặc khi nhận món tận nơi.
-Sau khi thanh toán thành công, hóa đơn chi tiết sẽ được tự động gửi về Gmail của bạn!`,
+• 💵 **Tiền mặt / Chuyển khoản:** Thanh toán linh hoạt tại quầy hoặc khi nhận món tận nơi (cho phép khách vãng lai bình thường, không gửi mail làm phiền).
+Sau khi thanh toán online thành công, hóa đơn chi tiết sẽ được tự động gửi về Gmail của bạn!`,
       action: { href: '/thuc-don', label: 'Đặt món & Trải nghiệm thanh toán ↗' },
     };
   }

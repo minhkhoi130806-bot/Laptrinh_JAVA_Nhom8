@@ -64,6 +64,15 @@ export default function ReservationPage() {
     <section className="shop-section shop-container shop-booking-layout">
       <div className="shop-booking-copy"><span className="shop-eyebrow">YOUR TABLE IS WAITING</span><h2>Hẹn nhau bên bàn ăn Hàn Quốc.</h2><p>Dù là bữa tối thân mật, gặp gỡ bạn bè hay dịp đặc biệt, hãy để chúng tôi chăm chút từng chi tiết.</p><div className="shop-booking-perk"><span>01</span><div><b>Chọn đúng thời gian</b><p>Hệ thống kiểm tra bàn trống theo giờ và số khách.</p></div></div><div className="shop-booking-perk"><span>02</span><div><b>Giữ chỗ thuận tiện</b><p>Thông tin đặt bàn được gửi trực tiếp đến hệ thống nhà hàng.</p></div></div><div className="shop-booking-note"><span>✦</span> Đặt bàn trước giúp chúng tôi phục vụ bạn chu đáo hơn.</div></div>
       <form className="shop-booking-form" onSubmit={submit}>
+        <div style={{ background: 'linear-gradient(135deg, #fffaf0 0%, #feebc8 100%)', border: '1px solid #fbd38d', borderRadius: '12px', padding: '16px 20px', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '14px' }}>
+          <span style={{ fontSize: '32px' }}>🍧</span>
+          <div>
+            <strong style={{ color: '#744210', fontSize: '15px' }}>ƯU ĐÃI ĐẶT BÀN ONLINE LẦN ĐẦU</strong>
+            <p style={{ margin: '3px 0 0', fontSize: '13px', color: '#975a16', lineHeight: '1.5' }}>
+              Tặng ngay <b>01 phần Bingsu kem tuyết Hàn Quốc</b> hoặc <b>giảm 10%</b> khi đặt bàn trước và dùng bữa tại nhà hàng!
+            </p>
+          </div>
+        </div>
         <div className="shop-form-heading"><span className="shop-eyebrow">HAN SEOUL · RESERVATION</span><h2>Thông tin đặt bàn</h2><p>Vui lòng điền các thông tin có dấu *</p></div>
         {success && <div className="shop-success"><span>✓</span><div><b>Đã gửi yêu cầu đặt bàn!</b><p>Mã đặt bàn <strong>#{success.id}</strong>{success.table ? ` · ${success.table.tableCode}` : ''}. Nhà hàng sẽ xác nhận yêu cầu của bạn.</p></div></div>}
         <div className="shop-form-grid"><label className="shop-field shop-field-full">Họ và tên *<input required maxLength={100} value={form.fullName} onChange={(e) => set('fullName', e.target.value)} placeholder="Tên của bạn" /></label><label className="shop-field">Số điện thoại *<input required type="tel" pattern="[0-9+() .-]{8,20}" value={form.phone} onChange={(e) => set('phone', e.target.value)} placeholder="0900 000 000" /></label><label className="shop-field">Email<input type="email" value={form.email} onChange={(e) => set('email', e.target.value)} placeholder="ban@email.com" /></label><label className="shop-field">Ngày và giờ *<input required type="datetime-local" min={toInputDateTime()} value={form.reservedAt} onChange={(e) => set('reservedAt', e.target.value)} /></label><label className="shop-field">Số khách *<select required value={form.guestCount} onChange={(e) => set('guestCount', e.target.value)}>{[1,2,3,4,5,6,7,8,9,10,12,15,20].map((n) => <option key={n} value={n}>{n} người</option>)}</select></label></div>

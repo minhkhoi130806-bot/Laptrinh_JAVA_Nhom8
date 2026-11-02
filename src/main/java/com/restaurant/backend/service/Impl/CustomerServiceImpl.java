@@ -13,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 public class CustomerServiceImpl implements CustomerService {
@@ -38,7 +39,8 @@ public class CustomerServiceImpl implements CustomerService {
             throw new BadRequestException("Số điện thoại đã tồn tại");
         }
         customer.setId(null);
-        customer.setLoyaltyPoints(0);
+        // Ưu đãi thành viên mới: Tặng ngay 50 điểm thưởng khởi đầu
+        customer.setLoyaltyPoints(50);
         Customer saved = customerRepository.save(customer);
         if (emailService != null && saved.getEmail() != null && !saved.getEmail().isBlank()) {
             try {
@@ -64,6 +66,23 @@ public class CustomerServiceImpl implements CustomerService {
     public Customer getById(Long id) {
         return customerRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy khách hàng id = " + id));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Customer getByPhone(String identifier) {
+        if (identifier == null || identifier.isBlank()) {
+            throw new BadRequestException("Vui lòng cung cấp số điện thoại hoặc email");
+        }
+        String clean = identifier.trim();
+        String cleanPhone = clean.replaceAll("[ .-]", "");
+        Optional<Customer> found = customerRepository.findByPhone(cleanPhone);
+        if (found.isEmpty() && clean.contains("@")) {
+            found = customerRepository.findByEmail(clean);
+        }
+        return found
+                .filter(c -> !Boolean.TRUE.equals(c.getDeleted()))
+                .orElseThrow(() -> new NotFoundException("Số điện thoại chưa đăng ký hội viên. Quý khách vui lòng đăng ký tài khoản mới!"));
     }
 
     @Override

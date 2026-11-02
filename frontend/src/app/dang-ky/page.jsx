@@ -2,11 +2,15 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import ShopLayout from '@/components/shop/ShopLayout';
 import Icon from '@/components/ui/Icon';
 import { api } from '@/lib/api';
 
 export default function RegisterPage() {
+  const searchParams = useSearchParams();
+  const redirectUrl = searchParams.get('redirect');
+
   const [form, setForm] = useState({ fullName: '', phone: '', email: '' });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -41,9 +45,10 @@ export default function RegisterPage() {
             name: data.fullName,
             phone: data.phone,
             email: data.email,
-            loyaltyPoints: data.loyaltyPoints || 0,
+            loyaltyPoints: data.loyaltyPoints || 50,
           })
         );
+        window.dispatchEvent(new Event('storage'));
       } catch {}
 
       setSuccess(data);
@@ -62,7 +67,7 @@ export default function RegisterPage() {
           <h1>
             Đăng ký <em>thành viên</em>
           </h1>
-          <p>Nhận ngay đặc quyền tích điểm và tự động nhận hóa đơn điện tử qua Gmail.</p>
+          <p>Nhận ngay 50 điểm thưởng chào mừng, ưu đãi giảm 10% và tự động nhận hóa đơn qua Gmail.</p>
           <div className="shop-breadcrumb">
             <Link href="/">Trang chủ</Link>
             <span>/</span>
@@ -82,18 +87,25 @@ export default function RegisterPage() {
               Chào mừng, {success.fullName}!
             </h2>
             <p style={{ color: '#4a5568', fontSize: '15px', lineHeight: '1.7', marginBottom: '20px' }}>
-              Hệ thống đã gửi một <strong>email chào mừng</strong> kèm thông tin đặc quyền hội viên tới địa chỉ{' '}
+              Hệ thống đã gửi một <strong>email chào mừng</strong> kèm mã giảm giá 10% tới địa chỉ{' '}
               <b style={{ color: '#2d3748' }}>{success.email}</b>.
             </p>
-            <div style={{ background: '#f7fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '16px', textAlign: 'left', margin: '0 auto 28px', maxWidth: '420px', fontSize: '14px' }}>
-              <p style={{ margin: '4px 0' }}>• <b>Số điện thoại tích điểm:</b> {success.phone}</p>
+            <div style={{ background: '#f7fafc', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '18px', textAlign: 'left', margin: '0 auto 28px', maxWidth: '440px', fontSize: '14px' }}>
+              <p style={{ margin: '4px 0' }}>• <b>Số điện thoại hội viên:</b> {success.phone}</p>
               <p style={{ margin: '4px 0' }}>• <b>Email nhận hóa đơn:</b> {success.email}</p>
-              <p style={{ margin: '4px 0' }}>• <b>Đặc quyền:</b> Khi bạn thanh toán qua ZaloPay/VNPay/MoMo, hóa đơn chi tiết sẽ được tự động gửi về email này.</p>
+              <p style={{ margin: '4px 0', color: '#c53030' }}>• <b>Điểm thưởng khởi đầu:</b> +50 điểm chào mừng</p>
+              <p style={{ margin: '4px 0', color: '#276749' }}>• <b>Ưu đãi hội viên:</b> Giảm ngay 10% cho đơn hàng trực tuyến đầu tiên.</p>
             </div>
             <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
-              <Link className="shop-button" href="/thuc-don">
-                Khám phá thực đơn & Đặt món <Icon name="arrowUpRight" size={17} />
-              </Link>
+              {redirectUrl ? (
+                <Link className="shop-button" href={redirectUrl}>
+                  Tiếp tục đơn hàng đang đặt <Icon name="arrowUpRight" size={17} />
+                </Link>
+              ) : (
+                <Link className="shop-button" href="/thuc-don">
+                  Khám phá thực đơn & Đặt món <Icon name="arrowUpRight" size={17} />
+                </Link>
+              )}
               <Link className="shop-outline-link" href="/tai-khoan">
                 Xem trang cá nhân
               </Link>
@@ -101,6 +113,17 @@ export default function RegisterPage() {
           </div>
         ) : (
           <form className="checkout-form" onSubmit={handleSubmit}>
+            {/* BANNER ƯU ĐÃI THÀNH VIÊN MỚI */}
+            <div style={{ background: 'linear-gradient(135deg, #fffaf0 0%, #feebc8 100%)', border: '1px solid #fbd38d', borderRadius: '12px', padding: '16px 20px', marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '14px' }}>
+              <span style={{ fontSize: '32px' }}>🎁</span>
+              <div>
+                <strong style={{ color: '#744210', fontSize: '15px' }}>ƯU ĐÃI ĐẶC QUYỀN HỘI VIÊN MỚI</strong>
+                <p style={{ margin: '3px 0 0', fontSize: '13px', color: '#975a16', lineHeight: '1.5' }}>
+                  Tặng ngay <b>50 điểm thưởng</b> khi đăng ký thành công + <b>Giảm 10%</b> cho đơn hàng trực tuyến đầu tiên!
+                </p>
+              </div>
+            </div>
+
             <div className="cart-section-title">
               <div>
                 <span className="shop-eyebrow">THÔNG TIN HỘI VIÊN</span>
@@ -128,7 +151,7 @@ export default function RegisterPage() {
                   maxLength={15}
                   value={form.phone}
                   onChange={(e) => change('phone', e.target.value)}
-                  placeholder="09xxxxxxxx"
+                  placeholder="Ví dụ: 0912345678"
                 />
               </label>
 
@@ -140,35 +163,48 @@ export default function RegisterPage() {
                   maxLength={150}
                   value={form.email}
                   onChange={(e) => change('email', e.target.value)}
-                  placeholder="email_cua_ban@gmail.com"
+                  placeholder="Ví dụ: yourname@gmail.com"
                 />
-                <small style={{ color: '#718096', fontSize: '12.5px', marginTop: '4px', display: 'block' }}>
-                  Hệ thống sẽ gửi email chào mừng ngay khi đăng ký, và gửi hóa đơn chi tiết mỗi khi bạn thanh toán.
-                </small>
               </label>
             </div>
 
+            <p style={{ fontSize: '13px', color: '#718096', lineHeight: '1.6', marginTop: '14px' }}>
+              Hệ thống sẽ gửi email chào mừng ngay khi đăng ký, và gửi hóa đơn chi tiết mỗi khi bạn thanh toán trực tuyến.
+            </p>
+
             {error && (
-              <p className="checkout-error" role="alert" style={{ marginTop: '16px' }}>
+              <div
+                style={{
+                  background: '#fff5f5',
+                  border: '1px solid #feb2b2',
+                  borderRadius: '8px',
+                  padding: '12px 16px',
+                  color: '#c53030',
+                  fontSize: '14px',
+                  marginTop: '16px',
+                }}
+              >
                 {error}
-              </p>
+              </div>
             )}
 
-            <button
-              className="shop-button checkout-submit"
-              type="submit"
-              disabled={busy}
-              style={{ marginTop: '24px' }}
-            >
-              {busy ? 'Đang kích hoạt tài khoản...' : 'Hoàn tất đăng ký thành viên'} <span>↗</span>
-            </button>
+            <div style={{ marginTop: '24px' }}>
+              <button
+                className="shop-button"
+                type="submit"
+                disabled={busy}
+                style={{ width: '100%', justifyContent: 'center' }}
+              >
+                {busy ? 'Đang kích hoạt tài khoản...' : 'Hoàn tất đăng ký thành viên'} <Icon name="arrowUpRight" size={17} />
+              </button>
+            </div>
 
-            <p style={{ textAlign: 'center', marginTop: '16px', fontSize: '14px', color: '#718096' }}>
-              Đã có tài khoản?{' '}
-              <Link href="/tai-khoan" style={{ color: '#8B2500', fontWeight: 600 }}>
-                Quay lại trang tài khoản
+            <div style={{ marginTop: '20px', textAlign: 'center', fontSize: '14px', color: '#718096' }}>
+              Đã có tài khoản hội viên?{' '}
+              <Link href={`/dang-nhap${redirectUrl ? `?redirect=${encodeURIComponent(redirectUrl)}` : ''}`} style={{ color: '#8B2500', fontWeight: 650 }}>
+                Đăng nhập ngay ↗
               </Link>
-            </p>
+            </div>
           </form>
         )}
       </section>

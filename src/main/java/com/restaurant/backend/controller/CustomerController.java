@@ -3,12 +3,14 @@ package com.restaurant.backend.controller;
 import com.restaurant.backend.dto.CustomerRequest;
 import com.restaurant.backend.dto.CustomerResponse;
 import com.restaurant.backend.dto.ListScope;
+import com.restaurant.backend.exception.BadRequestException;
 import com.restaurant.backend.mapper.CustomerMapper;
 import com.restaurant.backend.service.CustomerService;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/customers")
@@ -27,6 +29,16 @@ public class CustomerController {
     @ResponseStatus(HttpStatus.CREATED)
     public CustomerResponse registerPublic(@RequestBody CustomerRequest request) {
         return customerMapper.toResponse(customerService.create(customerMapper.toEntity(request)));
+    }
+
+    // API đăng nhập thành viên công khai bằng số điện thoại (hoặc email)
+    @PostMapping("/public-login")
+    public CustomerResponse loginPublic(@RequestBody Map<String, String> body) {
+        String phone = body.get("phone");
+        if (phone == null || phone.isBlank()) {
+            throw new BadRequestException("Vui lòng cung cấp số điện thoại hoặc email đã đăng ký");
+        }
+        return customerMapper.toResponse(customerService.getByPhone(phone));
     }
 
     @PostMapping

@@ -40,7 +40,7 @@ public class MomoPaymentController {
     @GetMapping("/methods")
     public Map<String, Object> methods() {
         Map<String, Object> result = new HashMap<>();
-        result.put("momo", momo.isEnabled());
+        result.put("momo", false);
         result.put("vnpay", vnpay.isEnabled());
         result.put("zalopay", zalopay.isEnabled());
         result.put("missing", momo.missingConfig());

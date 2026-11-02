@@ -96,6 +96,23 @@ public class EmailServiceImpl implements EmailService {
             }
         }
 
+        // Kiểm tra xem đơn hàng có phải thanh toán tại quầy / dùng tại chỗ không
+        String paymentMethod = (invoice != null && invoice.getPaymentMethod() != null)
+                ? invoice.getPaymentMethod().toUpperCase()
+                : (order.getPaymentPreference() != null ? order.getPaymentPreference().toUpperCase() : "");
+        String orderType = order.getOrderType() != null ? order.getOrderType().toUpperCase() : "";
+
+        boolean isCounterCashOrDineIn = "CASH".equals(paymentMethod) || "DINE_IN".equals(orderType);
+        boolean isWalkInGuest = (order.getCustomerId() == null || order.getCustomerId() <= 0)
+                && (order.getCustomerEmail() == null || order.getCustomerEmail().isBlank());
+
+        // Quy định: Không gửi email cho khách thanh toán tại quầy, dùng tại chỗ, hoặc khách vãng lai không đăng ký tài khoản
+        if (isCounterCashOrDineIn || isWalkInGuest) {
+            log.info("Đơn hàng #{} thanh toán tại quầy/dùng tại chỗ hoặc khách vãng lai ({} - {}). Bỏ qua gửi email theo cấu hình.",
+                    order.getId(), paymentMethod, orderType);
+            return;
+        }
+
         // Tập hợp danh sách người nhận (email của khách + các email quản trị viên nếu có)
         Set<String> recipients = new LinkedHashSet<>();
         if (order.getCustomerEmail() != null && !order.getCustomerEmail().isBlank() && isValidEmail(order.getCustomerEmail())) {
