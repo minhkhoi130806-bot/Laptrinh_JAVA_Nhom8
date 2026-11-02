@@ -19,12 +19,15 @@ public class CustomerServiceImpl implements CustomerService {
 
     private final CustomerRepository customerRepository;
     private final UserAccountRepository userAccountRepository;
+    private final EmailService emailService;
 
     public CustomerServiceImpl(
             CustomerRepository customerRepository,
-            UserAccountRepository userAccountRepository) {
+            UserAccountRepository userAccountRepository,
+            EmailService emailService) {
         this.customerRepository = customerRepository;
         this.userAccountRepository = userAccountRepository;
+        this.emailService = emailService;
     }
 
     @Override
@@ -36,7 +39,15 @@ public class CustomerServiceImpl implements CustomerService {
         }
         customer.setId(null);
         customer.setLoyaltyPoints(0);
-        return customerRepository.save(customer);
+        Customer saved = customerRepository.save(customer);
+        if (emailService != null && saved.getEmail() != null && !saved.getEmail().isBlank()) {
+            try {
+                emailService.sendCustomerWelcomeEmail(saved);
+            } catch (Exception ex) {
+                org.slf4j.LoggerFactory.getLogger(CustomerServiceImpl.class).warn("Lỗi gửi email chào mừng: {}", ex.getMessage());
+            }
+        }
+        return saved;
     }
 
     @Override

@@ -22,6 +22,13 @@ public class CustomerController {
         this.customerMapper = customerMapper;
     }
 
+    // API đăng ký thành viên công khai cho khách hàng
+    @PostMapping("/public-register")
+    @ResponseStatus(HttpStatus.CREATED)
+    public CustomerResponse registerPublic(@RequestBody CustomerRequest request) {
+        return customerMapper.toResponse(customerService.create(customerMapper.toEntity(request)));
+    }
+
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public CustomerResponse addCustomer(@RequestBody CustomerRequest request) {
