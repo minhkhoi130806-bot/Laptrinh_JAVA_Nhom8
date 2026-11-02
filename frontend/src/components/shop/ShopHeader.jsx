@@ -41,7 +41,6 @@ export default function ShopHeader() {
     { href: '/dat-ban', label: 'Đặt bàn' },
     { href: '/gioi-thieu', label: 'Về chúng tôi' },
     { href: '/lien-he', label: 'Liên hệ' },
-    { href: '/don-hang', label: 'Đơn hàng' },
   ];
 
   return (
