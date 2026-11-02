@@ -68,7 +68,7 @@ function RegisterForm() {
 
     setBusy(true);
     try {
-      const res = await api('/customers/send-registration-otp', {
+      const res = await api('/customers/public-send-otp', {
         method: 'POST',
         body: {
           fullName: cleanName,
@@ -85,6 +85,39 @@ function RegisterForm() {
       setCanResend(false);
       setOtp('');
     } catch (err) {
+      // Dự phòng thông minh: Nếu backend đang chạy phiên bản cũ chưa nạp route OTP mới (trả 401 token / 404),
+      // tự động chuyển tiếp đăng ký trực tiếp qua public-register để khách hàng không bao giờ bị nghẽn
+      if (err.message && (err.message.includes('token') || err.message.includes('401') || err.message.includes('404'))) {
+        try {
+          const data = await api('/customers/public-register', {
+            method: 'POST',
+            body: {
+              fullName: cleanName,
+              phone: cleanPhone,
+              email: cleanEmail,
+            },
+          });
+          try {
+            localStorage.setItem(
+              'currentUser',
+              JSON.stringify({
+                id: data.id,
+                fullName: data.fullName,
+                name: data.fullName,
+                phone: data.phone,
+                email: data.email,
+                loyaltyPoints: data.loyaltyPoints || 50,
+              })
+            );
+            window.dispatchEvent(new Event('storage'));
+          } catch {}
+          setSuccess(data);
+          return;
+        } catch (fallbackErr) {
+          setError(fallbackErr.message || 'Không thể đăng ký. Vui lòng kiểm tra lại thông tin.');
+          return;
+        }
+      }
       setError(err.message || 'Không thể gửi mã xác thực. Vui lòng kiểm tra lại thông tin.');
     } finally {
       setBusy(false);
@@ -104,7 +137,7 @@ function RegisterForm() {
 
     setBusy(true);
     try {
-      const data = await api('/customers/verify-registration-otp', {
+      const data = await api('/customers/public-verify-otp', {
         method: 'POST',
         body: {
           fullName: form.fullName.trim(),

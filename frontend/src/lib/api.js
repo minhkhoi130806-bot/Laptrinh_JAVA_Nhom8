@@ -6,6 +6,8 @@ export async function api(path, { method = 'GET', body, signal } = {}) {
 
   const isPublicShopEndpoint =
     path.startsWith('/customers/public-') ||
+    path.startsWith('/customers/send-') ||
+    path.startsWith('/customers/verify-') ||
     path.startsWith('/reservations/public') ||
     path.startsWith('/public-orders') ||
     path.startsWith('/payments/') ||
