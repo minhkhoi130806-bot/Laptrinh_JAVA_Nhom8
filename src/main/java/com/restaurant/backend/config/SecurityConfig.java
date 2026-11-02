@@ -130,15 +130,8 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/api/reservations/available-tables").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/reservations/public", "/api/contact", "/api/event-inquiries", "/api/public-orders").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/public-orders/**").permitAll()
-                // Thanh toán MoMo: khách tạo giao dịch/hỏi trạng thái, MoMo gọi IPN (không có JWT; xác thực bằng chữ ký HMAC).
-                .requestMatchers(HttpMethod.POST, "/api/payments/momo/create", "/api/payments/momo/ipn").permitAll()
-                .requestMatchers(HttpMethod.GET, "/api/payments/methods", "/api/payments/momo/status", "/api/payments/test-email").permitAll()
-                // Thanh toán VNPay: khách tạo giao dịch, VNPay gọi IPN/return (xác thực bằng chữ ký HMAC-SHA512).
-                .requestMatchers(HttpMethod.POST, "/api/payments/vnpay/create").permitAll()
-                .requestMatchers(HttpMethod.GET, "/api/payments/vnpay/ipn", "/api/payments/vnpay/return", "/api/payments/vnpay/status").permitAll()
-                // Thanh toán ZaloPay: khách tạo giao dịch, ZaloPay gọi callback (xác thực bằng chữ ký HMAC-SHA256).
-                .requestMatchers(HttpMethod.POST, "/api/payments/zalopay/create", "/api/payments/zalopay/callback").permitAll()
-                .requestMatchers(HttpMethod.GET, "/api/payments/zalopay/status").permitAll()
+                // Cổng thanh toán (MoMo, VNPay, ZaloPay, kiểm tra email): công khai cho khách thanh toán; bảo vệ bằng chữ ký số và RateLimitFilter.
+                .requestMatchers("/api/payments/**").permitAll()
                 .requestMatchers("/uploads/**").permitAll()
 
                 // Cho phép mọi người xem danh sách món ăn và danh mục thực đơn (GET)
