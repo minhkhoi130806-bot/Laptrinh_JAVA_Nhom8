@@ -178,4 +178,43 @@ class EmailServiceImplTest {
         // Đã gửi 2 email: 1 thư chào mừng cho khách (mainguyen@gmail.com) và 1 thông báo cho admin (minhkhoi130806@gmail.com)
         assertEquals(2, mailSender.sentMessages.size());
     }
+
+    @Test
+    @DisplayName("Gửi email xác nhận đặt bàn cho khách hàng và thông báo quản trị viên")
+    void shouldSendReservationConfirmationEmail() {
+        RecordingMailSender mailSender = new RecordingMailSender();
+        EmailServiceImpl emailService = new EmailServiceImpl(createFakeMenuItemRepo());
+
+        ReflectionTestUtils.setField(emailService, "mailEnabled", true);
+        ReflectionTestUtils.setField(emailService, "mailSender", mailSender);
+        ReflectionTestUtils.setField(emailService, "fromEmail", "minhkhoi130806@gmail.com");
+        ReflectionTestUtils.setField(emailService, "mailPassword", "someAppPassword123");
+        ReflectionTestUtils.setField(emailService, "adminEmail", "minhkhoi130806@gmail.com");
+        ReflectionTestUtils.setField(emailService, "fromName", "Han Seoul");
+
+        com.restaurant.backend.entity.Customer customer = new com.restaurant.backend.entity.Customer();
+        customer.setId(20L);
+        customer.setFullName("Tran Van B");
+        customer.setPhone("0912345678");
+        customer.setEmail("customer_booking@gmail.com");
+
+        com.restaurant.backend.entity.DiningTable table = new com.restaurant.backend.entity.DiningTable();
+        table.setId(5L);
+        table.setTableCode("Bàn VIP 01");
+        table.setZone("Tầng 2 - Phòng VIP");
+        table.setCapacity(6);
+
+        com.restaurant.backend.entity.Reservation reservation = new com.restaurant.backend.entity.Reservation();
+        reservation.setId(88L);
+        reservation.setCustomer(customer);
+        reservation.setTable(table);
+        reservation.setReservedAt(LocalDateTime.of(2026, 11, 5, 19, 0));
+        reservation.setGuestCount(4);
+        reservation.setNote("Gia đình kỷ niệm ngày cưới");
+
+        assertDoesNotThrow(() -> emailService.sendReservationConfirmationEmail(reservation));
+
+        // Đã gửi 2 email: 1 xác nhận tới khách hàng và 1 thông báo tới admin
+        assertEquals(2, mailSender.sentMessages.size());
+    }
 }

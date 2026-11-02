@@ -70,6 +70,22 @@ public class ReservationController {
             customer.setDeletedAt(null);
             customer = customerRepository.save(customer);
         }
+
+        // Cập nhật email để nhận thông báo xác nhận đặt bàn qua Gmail nếu khách có nhập email
+        if (request.email() != null && !request.email().isBlank()) {
+            String newEmail = request.email().trim();
+            if (customer.getEmail() == null || customer.getEmail().isBlank() || !customer.getEmail().equalsIgnoreCase(newEmail)) {
+                customer.setEmail(newEmail);
+                customer = customerRepository.save(customer);
+            }
+        }
+        if (request.fullName() != null && !request.fullName().isBlank()) {
+            String newName = request.fullName().trim();
+            if (customer.getFullName() == null || customer.getFullName().isBlank() || "Khách vãng lai".equalsIgnoreCase(customer.getFullName())) {
+                customer.setFullName(newName);
+                customer = customerRepository.save(customer);
+            }
+        }
         ReservationRequest reservationRequest = new ReservationRequest(
                 customer.getId(), request.tableId(), request.reservedAt(),
                 request.guestCount(), request.note()

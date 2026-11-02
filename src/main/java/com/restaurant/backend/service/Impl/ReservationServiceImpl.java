@@ -12,7 +12,9 @@ import com.restaurant.backend.mapper.ReservationMapper;
 import com.restaurant.backend.repository.CustomerRepository;
 import com.restaurant.backend.repository.DiningTableRepository;
 import com.restaurant.backend.repository.ReservationRepository;
+import com.restaurant.backend.service.EmailService;
 import com.restaurant.backend.service.ReservationService;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -36,16 +38,28 @@ public class ReservationServiceImpl implements ReservationService {
     private final ReservationRepository reservationRepository;
     private final CustomerRepository customerRepository;
     private final DiningTableRepository tableRepository;
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(ReservationServiceImpl.class);
     private final ReservationMapper reservationMapper;
+    private final EmailService emailService;
+
+    @Autowired
+    public ReservationServiceImpl(ReservationRepository reservationRepository,
+                                  CustomerRepository customerRepository,
+                                  DiningTableRepository tableRepository,
+                                  ReservationMapper reservationMapper,
+                                  @Autowired(required = false) EmailService emailService) {
+        this.reservationRepository = reservationRepository;
+        this.customerRepository = customerRepository;
+        this.tableRepository = tableRepository;
+        this.reservationMapper = reservationMapper;
+        this.emailService = emailService;
+    }
 
     public ReservationServiceImpl(ReservationRepository reservationRepository,
                                   CustomerRepository customerRepository,
                                   DiningTableRepository tableRepository,
                                   ReservationMapper reservationMapper) {
-        this.reservationRepository = reservationRepository;
-        this.customerRepository = customerRepository;
-        this.tableRepository = tableRepository;
-        this.reservationMapper = reservationMapper;
+        this(reservationRepository, customerRepository, tableRepository, reservationMapper, null);
     }
 
     @Override
@@ -57,7 +71,15 @@ public class ReservationServiceImpl implements ReservationService {
         validateBooking(request, table, null, true);
         Reservation reservation = reservationMapper.toEntity(request, customer, table);
         reservation.setId(null);
-        return reservationRepository.save(reservation);
+        Reservation saved = reservationRepository.save(reservation);
+        if (emailService != null) {
+            try {
+                emailService.sendReservationConfirmationEmail(saved);
+            } catch (Exception ex) {
+                log.warn("Lỗi gửi email xác nhận đặt bàn #{}: {}", saved.getId(), ex.getMessage());
+            }
+        }
+        return saved;
     }
 
     @Override

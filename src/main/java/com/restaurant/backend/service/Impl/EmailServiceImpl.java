@@ -1,6 +1,8 @@
 package com.restaurant.backend.service.Impl;
 
 import com.restaurant.backend.entity.Customer;
+import com.restaurant.backend.entity.DiningTable;
+import com.restaurant.backend.entity.Reservation;
 import com.restaurant.backend.entity.Invoice;
 import com.restaurant.backend.entity.Menuitem;
 import com.restaurant.backend.entity.Order;
@@ -605,4 +607,250 @@ public class EmailServiceImpl implements EmailService {
                 .replace("\"", "&quot;")
                 .replace("'", "&#39;");
     }
+
+    @Override
+    @Async
+    public void sendReservationConfirmationEmail(Reservation reservation) {
+        if (!mailEnabled) {
+            log.info("Tính năng gửi email đang bị tắt (app.mail.enabled=false). Bỏ qua gửi email đặt bàn #{}", reservation.getId());
+            return;
+        }
+
+        if (mailSender == null || fromEmail == null || fromEmail.isBlank() || mailPassword == null || mailPassword.isBlank()) {
+            log.warn("Gmail SMTP chưa được cấu hình. Lượt đặt bàn #{} đã tạo thành công nhưng chưa thể gửi email thực tế.", reservation.getId());
+            return;
+        }
+
+        Customer customer = reservation.getCustomer();
+        String customerEmail = customer != null ? customer.getEmail() : null;
+        String customerName = customer != null && customer.getFullName() != null ? customer.getFullName() : "Quý khách";
+        String customerPhone = customer != null && customer.getPhone() != null ? customer.getPhone() : "—";
+        DiningTable table = reservation.getTable();
+        String tableCode = table != null && table.getTableCode() != null ? table.getTableCode() : "Bàn đã chọn";
+        String zone = table != null && table.getZone() != null ? table.getZone() : "Khu vực chung";
+        Integer capacity = table != null ? table.getCapacity() : (reservation.getGuestCount() != null ? reservation.getGuestCount() : 2);
+        String formattedTime = reservation.getReservedAt() != null ? reservation.getReservedAt().format(DATE_FORMAT) : "Theo thỏa thuận";
+        int guestCount = reservation.getGuestCount() != null ? reservation.getGuestCount() : 1;
+        String note = reservation.getNote() != null && !reservation.getNote().isBlank() ? reservation.getNote().trim() : "Không có";
+
+        // Gửi email xác nhận chi tiết tới Gmail của khách hàng
+        if (customerEmail != null && !customerEmail.isBlank() && isValidEmail(customerEmail.trim())) {
+            String trimmedEmail = customerEmail.trim();
+            try {
+                MimeMessage msg = mailSender.createMimeMessage();
+                MimeMessageHelper helper = new MimeMessageHelper(msg, StandardCharsets.UTF_8.name());
+                helper.setFrom(fromEmail, fromName);
+                helper.setTo(trimmedEmail);
+                helper.setSubject("[Han Seoul] Xác nhận đặt bàn thành công #" + reservation.getId() + " - " + tableCode);
+                helper.setText(buildReservationConfirmationHtml(reservation.getId(), customerName, customerPhone, tableCode, zone, capacity, formattedTime, guestCount, note), true);
+                mailSender.send(msg);
+                log.info("ĐÃ GỬI EMAIL XÁC NHẬN ĐẶT BÀN #{} tới khách hàng: {} ({})", reservation.getId(), customerName, trimmedEmail);
+            } catch (Exception ex) {
+                log.error("Lỗi gửi email xác nhận đặt bàn #{} tới khách {}: {}", reservation.getId(), trimmedEmail, ex.getMessage());
+            }
+        } else {
+            log.info("Lượt đặt bàn #{} không có email khách hàng hợp lệ, bỏ qua gửi email cho khách.", reservation.getId());
+        }
+
+        // Đồng thời gửi thông báo tới email quản trị viên nhà hàng
+        if (adminEmail != null && !adminEmail.isBlank()) {
+            String adminSubject = "[Han Seoul] Khách đặt bàn mới #" + reservation.getId() + " - " + customerName + " (" + formattedTime + ")";
+            String adminHtml = buildAdminReservationNotificationHtml(reservation.getId(), customerName, customerPhone, customerEmail, tableCode, zone, formattedTime, guestCount, note);
+            for (String adm : adminEmail.split("[,;]")) {
+                String trimmed = adm.trim();
+                if (isValidEmail(trimmed)) {
+                    try {
+                        MimeMessage admMsg = mailSender.createMimeMessage();
+                        MimeMessageHelper admHelper = new MimeMessageHelper(admMsg, StandardCharsets.UTF_8.name());
+                        admHelper.setFrom(fromEmail, fromName);
+                        admHelper.setTo(trimmed);
+                        admHelper.setSubject(adminSubject);
+                        admHelper.setText(adminHtml, true);
+                        mailSender.send(admMsg);
+                        log.info("ĐÃ GỬI THÔNG BÁO đặt bàn mới #{} tới admin: {}", reservation.getId(), trimmed);
+                    } catch (Exception e) {
+                        log.error("Không thể gửi thông báo đặt bàn admin tới {}: {}", trimmed, e.getMessage());
+                    }
+                }
+            }
+        }
+    }
+
+    private String buildReservationConfirmationHtml(Long resId, String name, String phone, String tableCode, String zone, Integer capacity, String time, int guests, String note) {
+        String safeName = escapeHtml(name);
+        String safePhone = escapeHtml(phone);
+        String safeTable = escapeHtml(tableCode);
+        String safeZone = escapeHtml(zone);
+        String safeNote = escapeHtml(note);
+
+        String template = """
+            <!DOCTYPE html>
+            <html lang="vi">
+            <head>
+              <meta charset="UTF-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1.0">
+              <title>Xác nhận đặt bàn Han Seoul</title>
+            </head>
+            <body style="margin: 0; padding: 0; background-color: #f7fafc; font-family: 'Segoe UI', Arial, Tahoma, Helvetica, sans-serif; color: #2d3748; line-height: 1.6;">
+              <div style="max-width: 620px; margin: 30px auto; background: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05); border: 1px solid #edf2f7;">
+                
+                <!-- HEADER BANNER -->
+                <div style="background: linear-gradient(135deg, #173c32 0%, #255246 100%); color: #ffffff; padding: 32px 24px; text-align: center;">
+                  <span style="display: inline-block; background: rgba(226, 200, 155, 0.25); color: #e2c89b; padding: 4px 14px; border-radius: 20px; font-size: 11px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 8px;">
+                    HAN SEOUL KOREAN DINING
+                  </span>
+                  <h1 style="margin: 0; font-size: 24px; font-weight: 700; letter-spacing: -0.5px;">XÁC NHẬN ĐẶT BÀN THÀNH CÔNG</h1>
+                  <p style="margin: 8px 0 0; font-size: 14px; color: #e2c89b; opacity: 0.95;">Bàn ăn của bạn đã sẵn sàng tại nhà hàng</p>
+                </div>
+
+                <!-- BODY -->
+                <div style="padding: 28px 24px;">
+                  <div style="text-align: center; margin-bottom: 22px;">
+                    <span style="display: inline-block; background-color: #c6f6d5; color: #22543d; font-weight: 700; font-size: 13px; padding: 6px 16px; border-radius: 20px; text-transform: uppercase;">
+                      ✓ ĐÃ XÁC NHẬN GIỮ CHỖ
+                    </span>
+                    <h2 style="margin: 14px 0 6px; font-size: 20px; color: #1a202c;">MÃ ĐẶT BÀN: #{{ID}}</h2>
+                    <p style="margin: 0; color: #718096; font-size: 14px;">Thời gian đến: <strong style="color: #8B2500;">{{TIME}}</strong></p>
+                  </div>
+
+                  <p style="font-size: 15px; margin: 0 0 16px; color: #2d3748;">
+                    Kính gửi <strong>{{NAME}}</strong>,
+                  </p>
+                  <p style="font-size: 14px; color: #4a5568; margin: 0 0 20px; line-height: 1.6;">
+                    Cảm ơn bạn đã lựa chọn dùng bữa tại <strong>Han Seoul</strong>. Nhà hàng đã tiếp nhận và sắp xếp bàn ăn chu đáo theo thông tin đặt hẹn của bạn:
+                  </p>
+
+                  <!-- CHI TIẾT ĐẶT BÀN -->
+                  <div style="background-color: #fcfbf9; border: 1px solid #ede6db; border-radius: 10px; padding: 18px 20px; margin-bottom: 24px; font-size: 14px;">
+                    <table style="width: 100%; border-collapse: collapse;">
+                      <tr>
+                        <td style="padding: 8px 0; color: #718096; width: 38%;">Mã đặt bàn:</td>
+                        <td style="padding: 8px 0; font-weight: 700; color: #8B2500; font-size: 15px;">#{{ID}}</td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 8px 0; color: #718096;">Bàn phục vụ:</td>
+                        <td style="padding: 8px 0; font-weight: 700; color: #173c32;">{{TABLE}} ({{ZONE}} - {{CAPACITY}} chỗ)</td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 8px 0; color: #718096;">Thời gian dùng bữa:</td>
+                        <td style="padding: 8px 0; font-weight: 700; color: #2d3748;">{{TIME}}</td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 8px 0; color: #718096;">Số lượng khách:</td>
+                        <td style="padding: 8px 0; font-weight: 600; color: #2d3748;">{{GUESTS}} người</td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 8px 0; color: #718096;">Người đặt:</td>
+                        <td style="padding: 8px 0; font-weight: 600; color: #2d3748;">{{NAME}}</td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 8px 0; color: #718096;">Số điện thoại:</td>
+                        <td style="padding: 8px 0; font-weight: 600; color: #2d3748;">{{PHONE}}</td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 8px 0; color: #718096;">Ghi chú đặc biệt:</td>
+                        <td style="padding: 8px 0; font-style: italic; color: #4a5568;">{{NOTE}}</td>
+                      </tr>
+                    </table>
+                  </div>
+
+                  <!-- ƯU ĐÃI ĐẶT BÀN ONLINE -->
+                  <div style="background: linear-gradient(135deg, #fffaf0 0%, #feebc8 100%); border: 1px solid #fbd38d; border-radius: 10px; padding: 14px 18px; margin-bottom: 24px;">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                      <span style="font-size: 24px;">🍧</span>
+                      <div>
+                        <strong style="color: #744210; font-size: 13.5px;">ƯU ĐÃI DÀNH CHO BẠN KHI ĐẾN DÙNG BỮA</strong>
+                        <p style="margin: 2px 0 0; font-size: 12.5px; color: #975a16; line-height: 1.4;">
+                          Tặng ngay <b>01 phần Bingsu kem tuyết Hàn Quốc</b> hoặc <b>giảm 10%</b> khi thanh toán tại nhà hàng!
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- LƯU Ý QUAN TRỌNG -->
+                  <div style="background-color: #ebf8ff; border-left: 4px solid #3182ce; padding: 12px 16px; border-radius: 4px; margin-bottom: 24px; font-size: 13px; color: #2b6cb0;">
+                    <p style="margin: 0 0 6px; font-weight: 700;">✦ Quy định giữ bàn:</p>
+                    <p style="margin: 0; line-height: 1.5;">
+                      Nhà hàng sẽ giữ bàn trong vòng <strong>15 phút</strong> so với giờ hẹn. Trường hợp quý khách đến trễ hoặc có thay đổi số lượng người, xin vui lòng gọi hotline <strong>090 123 4567</strong> để được hỗ trợ chu đáo nhất.
+                    </p>
+                  </div>
+
+                  <!-- CTA BUTTONS -->
+                  <div style="text-align: center; margin: 28px 0 10px;">
+                    <a href="http://localhost:3000/thuc-don" style="background-color: #8B2500; color: #ffffff; text-decoration: none; padding: 12px 24px; border-radius: 6px; font-size: 13.5px; font-weight: 600; display: inline-block; margin-right: 8px;">
+                      Xem Thực Đơn &amp; Món Ăn &rarr;
+                    </a>
+                    <a href="http://localhost:3000/tra-cuu-dat-ban" style="background-color: #173c32; color: #ffffff; text-decoration: none; padding: 12px 24px; border-radius: 6px; font-size: 13.5px; font-weight: 600; display: inline-block;">
+                      Tra Cứu Lịch Hẹn &rarr;
+                    </a>
+                  </div>
+                </div>
+
+                <!-- FOOTER -->
+                <div style="background-color: #2d3748; padding: 20px 24px; text-align: center; color: #a0aec0; font-size: 12px;">
+                  <p style="margin: 0 0 4px; color: #edf2f7; font-weight: 600;">NHÀ HÀNG HÀN QUỐC HAN SEOUL</p>
+                  <p style="margin: 0 0 4px;">Hotline hỗ trợ: 090 123 4567 · Email: support@hanseoul.vn</p>
+                  <p style="margin: 0;">Địa chỉ: TP. Hồ Chí Minh, Việt Nam</p>
+                </div>
+
+              </div>
+            </body>
+            </html>
+            """;
+
+        return template.replace("{{ID}}", String.valueOf(resId))
+                .replace("{{NAME}}", safeName)
+                .replace("{{PHONE}}", safePhone)
+                .replace("{{TABLE}}", safeTable)
+                .replace("{{ZONE}}", safeZone)
+                .replace("{{CAPACITY}}", String.valueOf(capacity))
+                .replace("{{TIME}}", time)
+                .replace("{{GUESTS}}", String.valueOf(guests))
+                .replace("{{NOTE}}", safeNote);
+    }
+
+    private String buildAdminReservationNotificationHtml(Long resId, String name, String phone, String email, String tableCode, String zone, String time, int guests, String note) {
+        String safeName = escapeHtml(name);
+        String safePhone = escapeHtml(phone);
+        String safeEmail = escapeHtml(email != null && !email.isBlank() ? email : "Không có");
+        String safeTable = escapeHtml(tableCode);
+        String safeZone = escapeHtml(zone);
+        String safeNote = escapeHtml(note);
+
+        String template = """
+            <!DOCTYPE html>
+            <html lang="vi">
+            <body style="font-family: 'Segoe UI', Arial, Tahoma, Helvetica, sans-serif; color: #2d3748; padding: 20px; line-height: 1.6;">
+              <div style="max-width: 520px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; background: #ffffff;">
+                <h3 style="color: #173c32; margin-top: 0;">[THÔNG BÁO] Khách hàng mới đặt bàn #{{ID}}</h3>
+                <p>Hệ thống vừa ghi nhận một lượt đặt bàn mới cần chuẩn bị:</p>
+                <ul style="line-height: 1.8;">
+                  <li><strong>Mã đặt bàn:</strong> #{{ID}}</li>
+                  <li><strong>Khách hàng:</strong> {{NAME}}</li>
+                  <li><strong>Số điện thoại:</strong> {{PHONE}}</li>
+                  <li><strong>Email khách:</strong> {{EMAIL}}</li>
+                  <li><strong>Thời gian hẹn:</strong> <span style="color: #8B2500; font-weight: 700;">{{TIME}}</span></li>
+                  <li><strong>Bàn sắp xếp:</strong> {{TABLE}} (Khu vực: {{ZONE}})</li>
+                  <li><strong>Số lượng khách:</strong> {{GUESTS}} người</li>
+                  <li><strong>Ghi chú:</strong> <em>{{NOTE}}</em></li>
+                </ul>
+                <div style="margin-top: 16px; padding: 10px; background: #f7fafc; border-radius: 6px; font-size: 13px;">
+                  Vui lòng kiểm tra trên trang quản trị hoặc chuẩn bị bàn trước giờ hẹn 15-30 phút.
+                </div>
+              </div>
+            </body>
+            </html>
+            """;
+
+        return template.replace("{{ID}}", String.valueOf(resId))
+                .replace("{{NAME}}", safeName)
+                .replace("{{PHONE}}", safePhone)
+                .replace("{{EMAIL}}", safeEmail)
+                .replace("{{TABLE}}", safeTable)
+                .replace("{{ZONE}}", safeZone)
+                .replace("{{TIME}}", time)
+                .replace("{{GUESTS}}", String.valueOf(guests))
+                .replace("{{NOTE}}", safeNote);
+    }
+
 }
