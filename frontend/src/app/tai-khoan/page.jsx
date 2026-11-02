@@ -29,6 +29,7 @@ export default function AccountPage() {
       setUser(null);
       setToken(false);
       window.dispatchEvent(new Event('auth:expired'));
+      window.dispatchEvent(new Event('storage'));
     } catch {}
   }
 
@@ -125,54 +126,62 @@ export default function AccountPage() {
           </div>
         </div>
 
-        {/* CỘT PHẢI: LỐI TẮT DỊCH VỤ */}
+        {/* CỘT PHẢI: LỐI TẮT DỊCH VỤ (2x2 GRID CÂN ĐỐI) */}
         <div className="account-shortcuts">
           <Link href="/don-hang" className="account-shortcut-item">
-            <span className="account-shortcut-icon">
-              <Icon name="receipt" size={23} />
-            </span>
+            <div className="account-shortcut-top">
+              <span className="account-shortcut-icon">
+                <Icon name="receipt" size={22} />
+              </span>
+              <Icon name="arrowUpRight" size={18} className="account-shortcut-arrow" />
+            </div>
             <div className="account-shortcut-text">
               <small className="account-shortcut-index">01 / ĐƠN HÀNG</small>
               <b>Đơn hàng của tôi</b>
-              <small>Tra cứu trạng thái và lịch sử đặt món ăn</small>
+              <small>Tra cứu trạng thái món ăn & lịch sử đặt hàng</small>
             </div>
-            <Icon name="arrowUpRight" size={21} />
           </Link>
 
           <Link href="/yeu-thich" className="account-shortcut-item">
-            <span className="account-shortcut-icon">
-              <Icon name="heart" size={23} />
-            </span>
+            <div className="account-shortcut-top">
+              <span className="account-shortcut-icon">
+                <Icon name="heart" size={22} />
+              </span>
+              <Icon name="arrowUpRight" size={18} className="account-shortcut-arrow" />
+            </div>
             <div className="account-shortcut-text">
               <small className="account-shortcut-index">02 / YÊU THÍCH</small>
               <b>Món ăn yêu thích</b>
-              <small>Danh sách các món Hàn Quốc bạn đã lưu lại</small>
+              <small>Danh sách các món ăn truyền thống bạn đã lưu</small>
             </div>
-            <Icon name="arrowUpRight" size={21} />
           </Link>
 
           <Link href="/dat-ban" className="account-shortcut-item">
-            <span className="account-shortcut-icon">
-              <Icon name="calendar" size={23} />
-            </span>
+            <div className="account-shortcut-top">
+              <span className="account-shortcut-icon">
+                <Icon name="calendar" size={22} />
+              </span>
+              <Icon name="arrowUpRight" size={18} className="account-shortcut-arrow" />
+            </div>
             <div className="account-shortcut-text">
               <small className="account-shortcut-index">03 / ĐẶT BÀN</small>
-              <b>Đặt bàn tại nhà hàng</b>
-              <small>Giữ chỗ trước cho gia đình, bạn bè hoặc đối tác</small>
+              <b>Đặt bàn nhà hàng</b>
+              <small>Giữ chỗ trước cho bữa ăn cùng gia đình & bạn bè</small>
             </div>
-            <Icon name="arrowUpRight" size={21} />
           </Link>
 
           <Link href="/tra-cuu-dat-ban" className="account-shortcut-item">
-            <span className="account-shortcut-icon">
-              <Icon name="search" size={23} />
-            </span>
+            <div className="account-shortcut-top">
+              <span className="account-shortcut-icon">
+                <Icon name="search" size={22} />
+              </span>
+              <Icon name="arrowUpRight" size={18} className="account-shortcut-arrow" />
+            </div>
             <div className="account-shortcut-text">
               <small className="account-shortcut-index">04 / TRA CỨU</small>
               <b>Tra cứu đặt bàn</b>
               <small>Kiểm tra tình trạng xác nhận lịch hẹn của bạn</small>
             </div>
-            <Icon name="arrowUpRight" size={21} />
           </Link>
         </div>
       </section>

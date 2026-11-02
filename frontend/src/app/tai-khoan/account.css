@@ -1,12 +1,15 @@
 /* Trang tài khoản hội viên Han Seoul */
 .account-view {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr);
-  gap: 36px;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr);
+  gap: 32px;
   align-items: start;
 }
 
+/* Thẻ thông tin hội viên (Ghi đè padding 30px từ shop.css để banner tràn viền trên) */
+.account-view .account-profile-card,
 .account-profile-card {
+  padding: 0 !important;
   background: #ffffff;
   border-radius: 20px;
   overflow: hidden;
@@ -18,26 +21,26 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 20px;
-  height: 130px;
-  padding: 24px 28px 48px;
-  background: linear-gradient(135deg, #173c32 0%, #264e43 100%);
+  gap: 16px;
+  height: 120px;
+  padding: 20px 26px;
+  background: linear-gradient(135deg, #173c32 0%, #255246 100%);
   color: #e2c89b;
 }
 
 .account-profile-cover > span {
-  font: 40px Georgia, serif;
+  font: 36px Georgia, serif;
 }
 
 .account-profile-cover > small {
   font-size: 9px;
-  letter-spacing: 2.5px;
+  letter-spacing: 2px;
   font-weight: 700;
 }
 
 .account-profile-content {
   position: relative;
-  padding: 0 28px 32px;
+  padding: 0 24px 28px;
   text-align: center;
 }
 
@@ -45,17 +48,17 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 82px;
-  height: 82px;
-  margin: -41px auto 16px;
-  border: 5px solid #ffffff;
+  width: 76px;
+  height: 76px;
+  margin: -38px auto 12px;
+  border: 4px solid #ffffff;
   border-radius: 50%;
   background: #f4ede1;
   color: #8B2500;
   font-family: var(--font-display, 'Palatino Linotype', Georgia, serif);
-  font-size: 32px;
+  font-size: 30px;
   font-weight: 700;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
 }
 
 .account-member-badge {
@@ -67,31 +70,31 @@
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.5px;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
 
 .account-user-name {
-  margin: 6px 0 14px;
+  margin: 4px 0 12px;
   font-family: var(--font-display, 'Palatino Linotype', Georgia, serif);
-  font-size: 26px;
+  font-size: 24px;
   color: #1a202c;
   line-height: 1.3;
 }
 
 .account-guest-desc {
   color: #4a5568;
-  font-size: 14px;
+  font-size: 13.5px;
   line-height: 1.6;
-  margin: 0 auto 20px;
+  margin: 0 auto 18px;
   max-width: 320px;
 }
 
 .account-info-box {
-  background: #fbf9f5;
-  border: 1px solid #ece4d7;
+  background: #fcfbf9;
+  border: 1px solid #ede6db;
   border-radius: 12px;
-  padding: 14px 18px;
-  margin: 16px 0;
+  padding: 12px 16px;
+  margin: 14px 0;
   text-align: left;
 }
 
@@ -101,7 +104,7 @@
   align-items: center;
   padding: 7px 0;
   border-bottom: 1px dashed #e8ded1;
-  font-size: 13.5px;
+  font-size: 13px;
 }
 
 .account-info-row:last-child {
@@ -123,7 +126,7 @@
   font-weight: 700;
   padding: 2px 10px;
   border-radius: 12px;
-  font-size: 13px;
+  font-size: 12px;
 }
 
 .account-member-perks {
@@ -135,21 +138,15 @@
   background: #f0fff4;
   border: 1px solid #c6f6d5;
   border-radius: 8px;
-  padding: 10px 14px;
+  padding: 8px 12px;
   text-align: left;
-  margin-bottom: 20px;
+  margin-bottom: 18px;
 }
 
 .account-actions-wrap {
   display: flex;
   justify-content: center;
   gap: 12px;
-  margin-top: 12px;
-}
-
-.account-register-btn {
-  width: 100%;
-  justify-content: center;
 }
 
 .account-logout-btn {
@@ -159,7 +156,7 @@
   background: transparent;
   border: 1px solid #cbd5e0;
   border-radius: 8px;
-  padding: 8px 18px;
+  padding: 8px 20px;
   font-size: 13px;
   color: #718096;
   cursor: pointer;
@@ -173,8 +170,8 @@
 }
 
 .account-staff-box {
-  margin-top: 24px;
-  padding-top: 20px;
+  margin-top: 20px;
+  padding-top: 16px;
   border-top: 1px dashed #e2e8f0;
   text-align: center;
 }
@@ -213,48 +210,64 @@
   color: #ffffff;
 }
 
-/* Cột phải: Shortcuts */
+/* Cột phải: Lối tắt 2x2 cân đối chiều cao với cột trái */
 .account-shortcuts {
   display: grid;
-  gap: 14px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
 }
 
 .account-shortcut-item {
   display: flex;
-  align-items: center;
-  gap: 20px;
-  padding: 20px 24px;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 22px;
   border: 1px solid #e7e1d5;
   border-radius: 16px;
   background: #ffffff;
   text-decoration: none;
+  min-height: 180px;
   transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .account-shortcut-item:hover {
-  transform: translateY(-2px);
-  border-color: #c9bda8;
-  box-shadow: 0 8px 24px rgba(38, 53, 44, 0.06);
+  transform: translateY(-3px);
+  border-color: #8B2500;
+  box-shadow: 0 10px 28px rgba(139, 37, 0, 0.08);
+}
+
+.account-shortcut-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
 }
 
 .account-shortcut-icon {
   display: grid;
   place-items: center;
-  width: 52px;
-  height: 52px;
-  flex-shrink: 0;
-  border-radius: 14px;
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
   background: #f7f2e9;
   color: #8B2500;
   border: 1px solid #ebd9c5;
 }
 
+.account-shortcut-arrow {
+  color: #a0aec0;
+  transition: color 0.2s ease, transform 0.2s ease;
+}
+
+.account-shortcut-item:hover .account-shortcut-arrow {
+  color: #8B2500;
+  transform: translate(2px, -2px);
+}
+
 .account-shortcut-text {
-  flex: 1;
-  min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 4px;
 }
 
 .account-shortcut-index {
@@ -273,16 +286,21 @@
 .account-shortcut-text small {
   color: #718096;
   font-size: 12.5px;
+  line-height: 1.5;
 }
 
-.account-shortcut-item > svg {
-  color: #8B2500;
-  flex-shrink: 0;
-}
-
-@media (max-width: 860px) {
+@media (max-width: 900px) {
   .account-view {
     grid-template-columns: 1fr;
     gap: 24px;
+  }
+  .account-shortcuts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 600px) {
+  .account-shortcuts {
+    grid-template-columns: 1fr;
   }
 }

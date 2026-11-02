@@ -128,7 +128,8 @@ public class SecurityConfig {
                 .requestMatchers("/actuator/health", "/actuator/health/**", "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                 // Khách chưa đăng nhập chỉ được kiểm tra bàn trống và gửi yêu cầu đặt bàn.
                 .requestMatchers(HttpMethod.GET, "/api/reservations/available-tables").permitAll()
-                .requestMatchers(HttpMethod.POST, "/api/reservations/public", "/api/contact", "/api/event-inquiries", "/api/public-orders", "/api/customers/public-register", "/api/customers/public-register/**", "/api/customers/public-login", "/api/customers/public-login/**").permitAll()
+                .requestMatchers("/api/customers/public-register", "/api/customers/public-register/**", "/api/customers/public-login", "/api/customers/public-login/**").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/reservations/public", "/api/contact", "/api/event-inquiries", "/api/public-orders").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/public-orders/**").permitAll()
                 // Cổng thanh toán (MoMo, VNPay, ZaloPay, kiểm tra email): công khai cho khách thanh toán; bảo vệ bằng chữ ký số và RateLimitFilter.
                 .requestMatchers("/api/payments/**").permitAll()

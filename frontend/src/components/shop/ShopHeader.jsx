@@ -101,43 +101,54 @@ export default function ShopHeader() {
             {itemsInCart > 0 && <span>{itemsInCart}</span>}
           </Link>
 
-          {/* Hiển thị trạng thái đăng nhập hội viên rõ ràng trên Header */}
+          {/* Hiển thị trạng thái đăng nhập hội viên rõ ràng trên Header (Không dùng class shop-header-account để tránh bị ép thành vòng tròn 44px) */}
           {currentUser ? (
             <Link
-              className="shop-header-account"
               href="/tai-khoan"
               aria-label="Tài khoản hội viên"
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
-                gap: '6px',
-                padding: '4px 10px',
-                background: '#fbf9f5',
+                gap: '8px',
+                padding: '4px 12px 4px 6px',
+                background: '#fffdfa',
                 border: '1px solid #ebd9c5',
-                borderRadius: '20px',
+                borderRadius: '24px',
                 textDecoration: 'none',
-                color: '#8B2500',
-                fontSize: '12.5px',
-                fontWeight: 650,
+                color: '#1a202c',
+                height: '38px',
+                boxShadow: '0 2px 6px rgba(0,0,0,0.04)',
+                flexShrink: 0,
               }}
-              title={`Tài khoản: ${currentUser.fullName || currentUser.name} (${currentUser.loyaltyPoints || 0} điểm)`}
+              title={`Hội viên: ${currentUser.fullName || currentUser.name} (${currentUser.loyaltyPoints || 0} điểm)`}
             >
               <span
                 style={{
-                  width: '22px',
-                  height: '22px',
+                  width: '26px',
+                  height: '26px',
                   borderRadius: '50%',
                   background: '#8B2500',
                   color: '#ffffff',
                   display: 'grid',
                   placeItems: 'center',
-                  fontSize: '11px',
+                  fontSize: '12px',
                   fontWeight: 700,
+                  flexShrink: 0,
                 }}
               >
                 {(currentUser.fullName || currentUser.name || 'H').slice(0, 1).toUpperCase()}
               </span>
-              <span style={{ maxWidth: '90px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              <span
+                style={{
+                  fontSize: '13px',
+                  fontWeight: 650,
+                  color: '#2d3748',
+                  maxWidth: '100px',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                }}
+              >
                 {currentUser.fullName || currentUser.name}
               </span>
             </Link>
