@@ -1,13 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import ShopLayout from '@/components/shop/ShopLayout';
 import Icon from '@/components/ui/Icon';
 import { api } from '@/lib/api';
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirectUrl = searchParams.get('redirect') || '/tai-khoan';
@@ -187,5 +187,13 @@ export default function LoginPage() {
         </div>
       </section>
     </ShopLayout>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <LoginForm />
+    </Suspense>
   );
 }

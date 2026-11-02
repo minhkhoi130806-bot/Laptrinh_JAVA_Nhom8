@@ -1,13 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import ShopLayout from '@/components/shop/ShopLayout';
 import Icon from '@/components/ui/Icon';
 import { api } from '@/lib/api';
 
-export default function RegisterPage() {
+function RegisterForm() {
   const searchParams = useSearchParams();
   const redirectUrl = searchParams.get('redirect');
 
@@ -310,5 +310,13 @@ export default function RegisterPage() {
         </div>
       </section>
     </ShopLayout>
+  );
+}
+
+export default function RegisterPage() {
+  return (
+    <Suspense fallback={null}>
+      <RegisterForm />
+    </Suspense>
   );
 }

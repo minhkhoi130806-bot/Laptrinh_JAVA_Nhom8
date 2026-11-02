@@ -4,7 +4,11 @@ import com.restaurant.backend.dto.DiningTableResponse;
 import com.restaurant.backend.dto.ReservationRequest;
 import com.restaurant.backend.dto.ReservationResponse;
 import com.restaurant.backend.dto.ReservationStatusRequest;
+import com.restaurant.backend.dto.PublicReservationDetailResponse;
 import com.restaurant.backend.dto.PublicReservationRequest;
+import com.restaurant.backend.entity.Reservation;
+import com.restaurant.backend.repository.ReservationRepository;
+import java.util.ArrayList;
 import com.restaurant.backend.entity.Customer;
 import com.restaurant.backend.repository.CustomerRepository;
 import jakarta.validation.Valid;
@@ -27,15 +31,18 @@ public class ReservationController {
     private final ReservationMapper reservationMapper;
     private final DiningTableMapper tableMapper;
     private final CustomerRepository customerRepository;
+    private final ReservationRepository reservationRepository;
 
     public ReservationController(ReservationService reservationService,
                                  ReservationMapper reservationMapper,
                                  DiningTableMapper tableMapper,
-                                 CustomerRepository customerRepository) {
+                                 CustomerRepository customerRepository,
+                                 ReservationRepository reservationRepository) {
         this.reservationService = reservationService;
         this.reservationMapper = reservationMapper;
         this.tableMapper = tableMapper;
         this.customerRepository = customerRepository;
+        this.reservationRepository = reservationRepository;
     }
 
     @PostMapping
@@ -91,6 +98,55 @@ public class ReservationController {
                 request.guestCount(), request.note()
         );
         return reservationMapper.toResponse(reservationService.create(reservationRequest));
+    }
+
+    /**
+     * Tra cứu lịch sử đặt bàn công khai của khách hàng theo số điện thoại hoặc customerId.
+     * GET /api/reservations/public/history?phone=0912345678&customerId=1
+     */
+    @GetMapping("/public/history")
+    @Transactional(readOnly = true)
+    public List<PublicReservationDetailResponse> getPublicHistory(
+            @RequestParam(required = false) String phone,
+            @RequestParam(required = false) Long customerId) {
+        if ((phone == null || phone.isBlank()) && customerId == null) {
+            return List.of();
+        }
+        List<Reservation> list = new ArrayList<>();
+        if (customerId != null) {
+            list.addAll(reservationRepository.findByCustomerIdOrderByReservedAtDesc(customerId));
+        }
+        if (phone != null && !phone.isBlank()) {
+            String clean = phone.trim().replaceAll("[ .-]", "");
+            List<Reservation> byPhone = reservationRepository.findByCustomer_PhoneOrderByReservedAtDesc(clean);
+            if (byPhone.isEmpty() && !clean.equals(phone.trim())) {
+                byPhone = reservationRepository.findByCustomer_PhoneOrderByReservedAtDesc(phone.trim());
+            }
+            for (Reservation r : byPhone) {
+                if (list.stream().noneMatch(existing -> existing.getId().equals(r.getId()))) {
+                    list.add(r);
+                }
+            }
+        }
+        list.sort((a, b) -> {
+            if (a.getReservedAt() == null || b.getReservedAt() == null) return 0;
+            return b.getReservedAt().compareTo(a.getReservedAt());
+        });
+
+        return list.stream().map(r -> new PublicReservationDetailResponse(
+                r.getId(),
+                r.getCustomer() != null ? r.getCustomer().getId() : null,
+                r.getCustomer() != null ? r.getCustomer().getFullName() : null,
+                r.getCustomer() != null ? r.getCustomer().getPhone() : null,
+                r.getTable() != null ? r.getTable().getId() : null,
+                r.getTable() != null ? r.getTable().getTableCode() : "Bàn đã chọn",
+                r.getTable() != null ? r.getTable().getZone() : "Khu vực chung",
+                r.getTable() != null ? r.getTable().getCapacity() : (r.getGuestCount() != null ? r.getGuestCount() : 2),
+                r.getReservedAt(),
+                r.getGuestCount(),
+                r.getStatus(),
+                r.getNote()
+        )).toList();
     }
 
     // GET /api/reservations?customerId=1  hoặc  ?tableId=2
