@@ -106,6 +106,7 @@ export default function ReservationPage() {
       };
       try {
         localStorage.setItem('hanseoul:lastReservation', JSON.stringify(bookingRecord));
+        localStorage.setItem('hanseoul:lastPhone', form.phone.trim().replace(/[ .-]/g, ''));
       } catch {}
 
       setSuccess({
@@ -245,11 +246,11 @@ export default function ReservationPage() {
               </p>
               <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
                 <Link
-                  href="/tra-cuu-dat-ban"
+                  href="/don-hang?tab=reservations"
                   className="shop-button"
                   style={{ minHeight: '40px', padding: '8px 18px', fontSize: '13px' }}
                 >
-                  Tra cứu lịch hẹn đặt bàn →
+                  Xem lịch sử đặt bàn của bạn →
                 </Link>
                 <Link
                   href="/thuc-don"
