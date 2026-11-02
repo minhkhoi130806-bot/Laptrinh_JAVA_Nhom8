@@ -624,3 +624,165 @@
   color: #8B2500;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
+
+
+/* =========================================================
+   THANH LỌC & TÌM KIẾM MÓN ĂN ĐỒNG BỘ, ĐỀU & ĐẸP
+   ========================================================= */
+.shop-menu-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  background: #ffffff;
+  border: 1px solid #ebd9c5;
+  border-radius: 14px;
+  padding: 12px 18px;
+  margin-bottom: 32px;
+  box-shadow: 0 4px 16px rgba(38, 53, 44, 0.04);
+}
+
+.shop-menu-filter-inputs {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.shop-filter-input-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 44px;
+  background: #fcfbf9;
+  border: 1px solid #ded6c8;
+  border-radius: 9px;
+  padding: 0 14px;
+  transition: all 0.2s ease;
+}
+
+.shop-filter-input-wrap:focus-within {
+  background: #ffffff;
+  border-color: #8B2500;
+  box-shadow: 0 0 0 3px rgba(139, 37, 0, 0.08);
+}
+
+.shop-filter-search-box {
+  flex: 1.5;
+  min-width: 220px;
+}
+
+.shop-filter-price-box {
+  flex: 1;
+  min-width: 140px;
+  max-width: 180px;
+}
+
+.shop-filter-sort-box {
+  flex: 1;
+  min-width: 160px;
+  max-width: 200px;
+}
+
+.shop-filter-icon {
+  color: #8B2500;
+  font-size: 14px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+.shop-filter-input-wrap input {
+  width: 100%;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 13.5px;
+  color: #1a202c;
+}
+
+.shop-filter-input-wrap input::placeholder {
+  color: #a0aec0;
+  font-size: 13px;
+}
+
+.shop-filter-input-wrap select {
+  width: 100%;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 13px;
+  color: #2d3748;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.shop-filter-clear-btn {
+  background: none;
+  border: none;
+  color: #a0aec0;
+  cursor: pointer;
+  padding: 0 2px;
+  font-size: 13px;
+  line-height: 1;
+  display: grid;
+  place-items: center;
+}
+
+.shop-filter-clear-btn:hover {
+  color: #e53e3e;
+}
+
+.shop-filter-reset-all {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 44px;
+  padding: 0 14px;
+  border-radius: 9px;
+  background: #f7fafc;
+  border: 1px solid #cbd5e0;
+  color: #718096;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+}
+
+.shop-filter-reset-all:hover {
+  background: #fff5f5;
+  border-color: #feb2b2;
+  color: #c53030;
+}
+
+.shop-menu-results-count {
+  font-size: 13.5px;
+  color: #718096;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.shop-menu-results-count strong {
+  color: #8B2500;
+  font-size: 14.5px;
+}
+
+@media (max-width: 900px) {
+  .shop-menu-controls {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 14px;
+    gap: 12px;
+  }
+  .shop-filter-price-box,
+  .shop-filter-sort-box {
+    max-width: none;
+  }
+  .shop-menu-results-count {
+    text-align: right;
+    padding-top: 8px;
+    border-top: 1px dashed #ede8de;
+  }
+}
