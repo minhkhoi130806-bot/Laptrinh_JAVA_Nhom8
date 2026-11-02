@@ -33,7 +33,7 @@ export default function ShopFooter() {
         <div>
           <b>Hỗ trợ khách hàng</b>
           <Link href="/dat-ban">Đặt bàn</Link>
-          <Link href="/tra-cuu-dat-ban">Tra cứu đặt bàn</Link>
+          <Link href="/don-hang?tab=reservations">Lịch sử đặt bàn</Link>
           <Link href="/cau-hoi">Câu hỏi thường gặp</Link>
           <Link href="/danh-gia">Đánh giá trải nghiệm</Link>
           <Link href="/lien-he">Liên hệ</Link>

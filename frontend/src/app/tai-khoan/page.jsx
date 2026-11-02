@@ -570,7 +570,7 @@ export default function AccountPage() {
                                   Hotline: 0900 000 888
                                 </a>
                                 <Link
-                                  href={`/tra-cuu-dat-ban?phone=${encodeURIComponent(res.customerPhone || user.phone || '')}`}
+                                  href={`/don-hang?tab=reservations&phone=${encodeURIComponent(res.customerPhone || user.phone || '')}`}
                                   className="shop-button"
                                   style={{
                                     minHeight: '34px',
@@ -579,7 +579,7 @@ export default function AccountPage() {
                                     borderRadius: '8px',
                                   }}
                                 >
-                                  Tra cứu chi tiết ↗
+                                  Xem chi tiết đặt bàn ↗
                                 </Link>
                               </div>
                             </div>

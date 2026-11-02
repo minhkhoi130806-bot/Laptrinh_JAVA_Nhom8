@@ -61,7 +61,7 @@ export default function HomePage() {
       <div className="shop-discovery-grid">
         <Link href="/khuyen-mai"><span><Icon name="ticket" /></span><b>Ưu đãi & trải nghiệm</b><small>Gợi ý cho bữa ăn cùng người thân</small><i><Icon name="arrowUpRight" /></i></Link>
         <Link href="/yeu-thich"><span><Icon name="heart" /></span><b>Món ăn yêu thích</b><small>Lưu lại những lựa chọn của bạn</small><i><Icon name="arrowUpRight" /></i></Link>
-        <Link href="/tra-cuu-dat-ban"><span><Icon name="calendar" /></span><b>Tra cứu đặt bàn</b><small>Xem yêu cầu đã lưu trên thiết bị</small><i><Icon name="arrowUpRight" /></i></Link>
+        <Link href="/don-hang?tab=reservations"><span><Icon name="calendar" /></span><b>Lịch sử đặt bàn</b><small>Xem thông tin và trạng thái bàn đã đặt</small><i><Icon name="arrowUpRight" /></i></Link>
         <Link href="/cau-hoi"><span><Icon name="message" /></span><b>Trung tâm hỗ trợ</b><small>Giải đáp câu hỏi thường gặp</small><i><Icon name="arrowUpRight" /></i></Link>
       </div>
     </section>

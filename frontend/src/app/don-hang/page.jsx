@@ -46,8 +46,6 @@ function OrderTrackingContent() {
 
   const [activeTab, setActiveTab] = useState(initialTab);
   const [phone, setPhone] = useState('');
-  const [manualPhoneInput, setManualPhoneInput] = useState('');
-  const [showPhoneEdit, setShowPhoneEdit] = useState(false);
 
   const [user, setUser] = useState(null);
   const [orders, setOrders] = useState([]);
@@ -57,6 +55,94 @@ function OrderTrackingContent() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [payBusy, setPayBusy] = useState(false);
+
+  function checkLocalBackup() {
+    try {
+      const lastResRaw = localStorage.getItem('hanseoul:lastReservation');
+      if (lastResRaw) {
+        const parsed = JSON.parse(lastResRaw);
+        if (parsed && parsed.id) {
+          setReservations([
+            {
+              id: parsed.id,
+              customerName: parsed.fullName || 'Khách hàng',
+              customerPhone: parsed.phone,
+              tableCode: parsed.tableCode || 'Bàn đã chọn',
+              zone: 'Khu vực nhà hàng',
+              capacity: parsed.guestCount || 2,
+              guestCount: parsed.guestCount || 2,
+              reservedAt: parsed.reservedAt,
+              status: 'CONFIRMED',
+              note: parsed.note,
+            },
+          ]);
+        }
+      }
+    } catch {}
+  }
+
+  // Tải danh sách đơn hàng và lịch đặt bàn tự động
+  async function loadHistory(phoneValue, customerIdValue) {
+    if (!phoneValue && !customerIdValue) return;
+    setLoading(true);
+    setError('');
+
+    const params = new URLSearchParams();
+    if (phoneValue) params.set('phone', phoneValue);
+    if (customerIdValue) params.set('customerId', customerIdValue);
+
+    try {
+      const [orderList, resList, items] = await Promise.all([
+        api(`/public-orders/history?${params.toString()}`).catch(() => []),
+        api(`/reservations/public/history?${params.toString()}`).catch(() => []),
+        api('/menu-items').catch(() => []),
+      ]);
+
+      setOrders(orderList || []);
+
+      let finalReservations = resList || [];
+      // Nếu API chưa kịp index nhưng máy có lưu lần đặt gần nhất thì bổ sung ngay
+      if (finalReservations.length === 0) {
+        try {
+          const lastResRaw = localStorage.getItem('hanseoul:lastReservation');
+          if (lastResRaw) {
+            const parsed = JSON.parse(lastResRaw);
+            if (parsed && parsed.id) {
+              finalReservations = [
+                {
+                  id: parsed.id,
+                  customerName: parsed.fullName || 'Khách hàng',
+                  customerPhone: parsed.phone || phoneValue,
+                  tableCode: parsed.tableCode || 'Bàn đã chọn',
+                  zone: 'Khu vực nhà hàng',
+                  capacity: parsed.guestCount || 2,
+                  guestCount: parsed.guestCount || 2,
+                  reservedAt: parsed.reservedAt,
+                  status: 'CONFIRMED',
+                  note: parsed.note,
+                },
+              ];
+            }
+          }
+        } catch {}
+      }
+
+      setReservations(finalReservations);
+      if (items && items.length > 0) {
+        setMenuItems(items);
+      }
+
+      if (phoneValue) {
+        try {
+          localStorage.setItem('hanseoul:lastPhone', phoneValue);
+        } catch {}
+      }
+    } catch (err) {
+      setError(err.message || 'Không thể tải lịch sử đơn hàng lúc này.');
+    } finally {
+      setLoading(false);
+    }
+  }
 
   // Tự động nhận diện tài khoản hoặc số điện thoại từ trình duyệt
   useEffect(() => {
@@ -79,68 +165,29 @@ function OrderTrackingContent() {
           detectedPhone = lastPhone.trim().replace(/[ .-]/g, '');
         }
       }
+
+      if (!detectedPhone) {
+        const lastResRaw = localStorage.getItem('hanseoul:lastReservation');
+        if (lastResRaw) {
+          const parsed = JSON.parse(lastResRaw);
+          if (parsed?.phone) {
+            detectedPhone = parsed.phone.trim().replace(/[ .-]/g, '');
+          }
+        }
+      }
     } catch {}
 
     if (detectedPhone) {
       setPhone(detectedPhone);
-      setManualPhoneInput(detectedPhone);
       loadHistory(detectedPhone, detectedUser?.id);
     } else {
-      // Tải menu items trước để sẵn sàng
+      // Tải menu items và kiểm tra reservation cục bộ
+      checkLocalBackup();
       api('/menu-items')
         .then((items) => setMenuItems(items || []))
         .catch(() => {});
     }
   }, [queryPhone]);
-
-  // Tải danh sách đơn hàng và lịch đặt bàn tự động
-  async function loadHistory(phoneValue, customerIdValue) {
-    if (!phoneValue && !customerIdValue) return;
-    setLoading(true);
-    setError('');
-
-    const params = new URLSearchParams();
-    if (phoneValue) params.set('phone', phoneValue);
-    if (customerIdValue) params.set('customerId', customerIdValue);
-
-    try {
-      const [orderList, resList, items] = await Promise.all([
-        api(`/public-orders/history?${params.toString()}`).catch(() => []),
-        api(`/reservations/public/history?${params.toString()}`).catch(() => []),
-        api('/menu-items').catch(() => []),
-      ]);
-
-      setOrders(orderList || []);
-      setReservations(resList || []);
-      if (items && items.length > 0) {
-        setMenuItems(items);
-      }
-
-      // Lưu lại số điện thoại vào máy để các lần sau không cần nhập
-      if (phoneValue) {
-        try {
-          localStorage.setItem('hanseoul:lastPhone', phoneValue);
-        } catch {}
-      }
-    } catch (err) {
-      setError(err.message || 'Không thể tải lịch sử đơn hàng lúc này.');
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  // Tra cứu theo số điện thoại khác khi người dùng nhập thủ công
-  function handleManualSearch(e) {
-    e.preventDefault();
-    const clean = manualPhoneInput.trim().replace(/[ .-]/g, '');
-    if (!clean) {
-      setError('Vui lòng nhập số điện thoại để tra cứu.');
-      return;
-    }
-    setPhone(clean);
-    setShowPhoneEdit(false);
-    loadHistory(clean, user?.id);
-  }
 
   const menuMap = useMemo(() => {
     const map = new Map();
@@ -197,13 +244,13 @@ function OrderTrackingContent() {
           <h1>
             Lịch sử <em>đơn hàng & đặt bàn</em>
           </h1>
-          <p>Tự động nhận diện và theo dõi chi tiết các món ăn bạn đã gọi cùng lịch hẹn giữ bàn tại nhà hàng.</p>
+          <p>Tự động nhận diện và hiển thị chi tiết các món ăn bạn đã gọi cùng lịch hẹn giữ bàn tại nhà hàng.</p>
           <div className="shop-breadcrumb">
             <Link href="/">Trang chủ</Link>
             <span>/</span>
             <Link href="/tai-khoan">Tài khoản</Link>
             <span>/</span>
-            <span>Đơn hàng</span>
+            <span>{activeTab === 'reservations' ? 'Lịch sử đặt bàn' : 'Đơn hàng'}</span>
           </div>
         </div>
       </section>
@@ -267,137 +314,7 @@ function OrderTrackingContent() {
           </div>
         )}
 
-        {/* THANH NHẬN DIỆN KHÁCH HÀNG & NÚT ĐỔI SỐ */}
-        <div
-          style={{
-            background: '#ffffff',
-            border: '1px solid #ede8de',
-            borderRadius: '16px',
-            padding: '16px 22px',
-            marginBottom: '24px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            flexWrap: 'wrap',
-            gap: '12px',
-            boxShadow: '0 3px 12px rgba(0,0,0,0.03)',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <span
-              style={{
-                width: '38px',
-                height: '38px',
-                borderRadius: '50%',
-                background: user ? '#8B2500' : '#173c32',
-                color: '#ffffff',
-                display: 'grid',
-                placeItems: 'center',
-                fontSize: '16px',
-                fontWeight: 700,
-              }}
-            >
-              {user ? (user.fullName || user.name || 'H').slice(0, 1).toUpperCase() : '👤'}
-            </span>
-            <div>
-              <div style={{ fontSize: '14.5px', fontWeight: 650, color: '#1a202c' }}>
-                {user ? `${user.fullName || user.name} (Hội viên)` : (phone ? `Khách hàng: ${phone}` : 'Khách vãng lai')}
-              </div>
-              <small style={{ color: '#718096', fontSize: '12.5px' }}>
-                {phone
-                  ? `Đang tự động hiển thị lịch sử cho số điện thoại: ${phone}`
-                  : 'Chưa nhận diện số điện thoại trên máy này.'}
-              </small>
-            </div>
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            {phone && (
-              <button
-                type="button"
-                onClick={() => setShowPhoneEdit(!showPhoneEdit)}
-                style={{
-                  background: 'transparent',
-                  border: '1px solid #cbd5e0',
-                  borderRadius: '8px',
-                  padding: '6px 14px',
-                  fontSize: '12.5px',
-                  color: '#4a5568',
-                  cursor: 'pointer',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                }}
-              >
-                <Icon name="search" size={14} /> {showPhoneEdit ? 'Đóng tra cứu' : 'Tra cứu số khác'}
-              </button>
-            )}
-
-            {!user && (
-              <Link
-                href="/dang-nhap?redirect=/don-hang"
-                className="shop-outline-link"
-                style={{
-                  minHeight: '34px',
-                  padding: '6px 14px',
-                  fontSize: '12.5px',
-                  borderRadius: '8px',
-                }}
-              >
-                Đăng nhập hội viên ↗
-              </Link>
-            )}
-          </div>
-        </div>
-
-        {/* FORM NHẬP SỐ ĐIỆN THOẠI TRA CỨU (KHI CHƯA CÓ HOẶC KHI BẤM 'TRA CỨU SỐ KHÁC') */}
-        {(!phone || showPhoneEdit) && (
-          <form
-            onSubmit={handleManualSearch}
-            style={{
-              background: '#fcfbf9',
-              border: '1px dashed #ded6c8',
-              borderRadius: '16px',
-              padding: '20px 24px',
-              marginBottom: '26px',
-            }}
-          >
-            <h3 style={{ margin: '0 0 6px', fontSize: '16px', color: '#1a202c' }}>
-              Tra cứu đơn hàng và lịch đặt bàn nhanh
-            </h3>
-            <p style={{ margin: '0 0 14px', fontSize: '13px', color: '#718096' }}>
-              Nhập số điện thoại bạn đã dùng khi đặt món hoặc giữ chỗ bàn ăn:
-            </p>
-            <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-              <input
-                type="tel"
-                required
-                value={manualPhoneInput}
-                onChange={(e) => setManualPhoneInput(e.target.value)}
-                placeholder="Nhập số điện thoại (ví dụ: 0912345678)"
-                style={{
-                  flex: 1,
-                  minWidth: '220px',
-                  padding: '10px 16px',
-                  borderRadius: '10px',
-                  border: '1px solid #cbd5e0',
-                  fontSize: '14px',
-                  outline: 'none',
-                }}
-              />
-              <button
-                type="submit"
-                disabled={loading}
-                className="shop-button"
-                style={{ minHeight: '42px', padding: '10px 22px', fontSize: '13.5px' }}
-              >
-                {loading ? 'Đang tìm...' : 'Xem đơn hàng ngay ↗'}
-              </button>
-            </div>
-          </form>
-        )}
-
-        {/* THANH CHUYỂN TABS GIỮA ĐƠN ĐẶT MÓN VÀ LỊCH SỬ ĐẶT BÀN */}
+        {/* THANH CHUYỂN TABS TRỰC TIẾP GIỮA ĐƠN ĐẶT MÓN VÀ LỊCH SỬ ĐẶT BÀN */}
         <div className="account-tabs-bar" style={{ marginBottom: '24px' }}>
           <button
             type="button"
@@ -420,7 +337,7 @@ function OrderTrackingContent() {
           <div>
             {loading ? (
               <div style={{ textAlign: 'center', padding: '50px 0', color: '#718096' }}>
-                <span className="shop-spinner" style={{ marginRight: '8px' }} /> Đang tải chi tiết đơn hàng...
+                <span className="shop-spinner" style={{ marginRight: '8px' }} /> Đang tải chi tiết đơn hàng của bạn...
               </div>
             ) : orders.length === 0 ? (
               <div
@@ -435,7 +352,7 @@ function OrderTrackingContent() {
               >
                 <span style={{ fontSize: '46px', display: 'block', marginBottom: '12px' }}>🛍️</span>
                 <h3 style={{ fontSize: '19px', color: '#1a202c', margin: '0 0 8px' }}>
-                  {phone ? 'Không tìm thấy đơn hàng nào của số điện thoại này' : 'Bạn chưa có đơn đặt món nào'}
+                  Bạn chưa có đơn đặt món nào
                 </h3>
                 <p style={{ color: '#718096', fontSize: '14px', margin: '0 0 22px', maxWidth: '440px', marginInline: 'auto' }}>
                   Khám phá thực đơn phong phú với các món nướng BBQ, canh hầm và tráng miệng Hàn Quốc truyền thống của Han Seoul ngay!
@@ -629,7 +546,7 @@ function OrderTrackingContent() {
           <div>
             {loading ? (
               <div style={{ textAlign: 'center', padding: '50px 0', color: '#718096' }}>
-                <span className="shop-spinner" style={{ marginRight: '8px' }} /> Đang tải lịch sử đặt bàn...
+                <span className="shop-spinner" style={{ marginRight: '8px' }} /> Đang tải lịch sử đặt bàn của bạn...
               </div>
             ) : reservations.length === 0 ? (
               <div
@@ -644,7 +561,7 @@ function OrderTrackingContent() {
               >
                 <span style={{ fontSize: '46px', display: 'block', marginBottom: '12px' }}>📅</span>
                 <h3 style={{ fontSize: '19px', color: '#1a202c', margin: '0 0 8px' }}>
-                  {phone ? 'Không tìm thấy lịch đặt bàn nào của số điện thoại này' : 'Bạn chưa có lịch hẹn đặt bàn nào'}
+                  Bạn chưa có lịch hẹn đặt bàn nào
                 </h3>
                 <p style={{ color: '#718096', fontSize: '14px', margin: '0 0 22px', maxWidth: '440px', marginInline: 'auto' }}>
                   Giữ chỗ trước tại Han Seoul để chúng tôi chuẩn bị không gian ấm cúng và những món ăn trọn vị nhất cho bạn!
@@ -707,7 +624,10 @@ function OrderTrackingContent() {
 
                           <div className="account-res-col">
                             <small>Người liên hệ</small>
-                            <b>{res.customerName || (user?.fullName || user?.name || 'Khách hàng')} ({res.customerPhone || phone})</b>
+                            <b>
+                              {res.customerName || (user?.fullName || user?.name || 'Khách hàng')}{' '}
+                              {res.customerPhone || phone ? `(${res.customerPhone || phone})` : ''}
+                            </b>
                           </div>
                         </div>
 
