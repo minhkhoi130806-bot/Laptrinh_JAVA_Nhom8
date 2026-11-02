@@ -68,7 +68,7 @@ function RegisterForm() {
 
     setBusy(true);
     try {
-      const res = await api('/customers/public-send-otp', {
+      const res = await api('/customers/public-register/send-otp', {
         method: 'POST',
         body: {
           fullName: cleanName,
@@ -105,7 +105,7 @@ function RegisterForm() {
 
     setBusy(true);
     try {
-      const data = await api('/customers/public-verify-otp', {
+      const data = await api('/customers/public-register/verify-otp', {
         method: 'POST',
         body: {
           fullName: form.fullName.trim(),
