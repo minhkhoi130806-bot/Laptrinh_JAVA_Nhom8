@@ -4,6 +4,7 @@ import com.restaurant.backend.entity.Customer;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
+import java.util.Optional;
 
 public interface CustomerRepository extends JpaRepository<Customer, Long> {
     // Lọc theo thùng rác: false = đang dùng, true = đã xóa mềm
@@ -11,8 +12,9 @@ public interface CustomerRepository extends JpaRepository<Customer, Long> {
 
     boolean existsByPhone(String phone);
 
-    java.util.Optional<Customer> findByPhone(String phone);
+    Optional<Customer> findByPhone(String phone);
+
+    Optional<Customer> findByEmail(String email);
 
     boolean existsByPhoneAndIdNot(String phone, Long id);
-
 }

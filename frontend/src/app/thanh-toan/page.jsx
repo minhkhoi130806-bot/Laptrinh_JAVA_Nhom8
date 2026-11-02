@@ -22,11 +22,16 @@ export default function CheckoutPage() {
   const [zalopayWhy, setZalopayWhy] = useState('đang kiểm tra...');
   const total = useMemo(() => cartTotal(items), [items]);
 
+  const [memberUser, setMemberUser] = useState(null);
+
   useEffect(() => {
     setItems(readCart());
     try {
       const user = JSON.parse(localStorage.getItem('currentUser') || 'null');
-      if (user) setForm((old) => ({ ...old, name: user.fullName || user.name || '', email: user.email || '', phone: user.phone || '' }));
+      if (user) {
+        setMemberUser(user);
+        setForm((old) => ({ ...old, name: user.fullName || user.name || '', email: user.email || '', phone: user.phone || '' }));
+      }
     } catch {}
   }, []);
 
@@ -114,7 +119,32 @@ export default function CheckoutPage() {
   const payLabel = form.payment === 'MOMO' ? 'MoMo' : form.payment === 'VNPAY' ? 'VNPay' : form.payment === 'ZALOPAY' ? 'ZaloPay' : null;
 
   return <ShopLayout><section className="shop-page-hero"><div className="shop-container"><span className="shop-eyebrow">ĐẶT MÓN · HAN SEOUL</span><h1>Hoàn tất <em>đơn hàng</em></h1><p>Điền thông tin bên dưới để chúng tôi chuẩn bị bữa ăn dành cho bạn.</p><div className="shop-breadcrumb"><Link href="/">Trang chủ</Link><span>/</span><Link href="/gio-hang">Giỏ hàng</Link><span>/</span><span>Đặt món</span></div></div></section>
-  <section className="shop-section shop-container checkout-layout"><form className="checkout-form" onSubmit={submit}><div className="cart-section-title"><div><span className="shop-eyebrow">BƯỚC 1</span><h2>Thông tin liên hệ</h2></div></div><div className="checkout-fields"><label>Họ và tên *<input required maxLength={100} value={form.name} onChange={(e) => change('name', e.target.value)} placeholder="Tên người nhận" /></label><label>Số điện thoại *<input required type="tel" maxLength={15} value={form.phone} onChange={(e) => change('phone', e.target.value)} placeholder="09xxxxxxxx" /></label><label>Email (nhận hóa đơn)<input type="email" maxLength={150} value={form.email} onChange={(e) => change('email', e.target.value)} placeholder="email@example.com" /></label></div>
+  <section className="shop-section shop-container checkout-layout"><form className="checkout-form" onSubmit={submit}>
+  {memberUser ? (
+    <div style={{ background: '#f0fff4', border: '1px solid #9ae6b4', borderRadius: '12px', padding: '14px 18px', marginBottom: '22px', display: 'flex', alignItems: 'center', gap: '14px' }}>
+      <div style={{ fontSize: '26px', background: '#c6f6d5', width: '46px', height: '46px', borderRadius: '50%', display: 'grid', placeItems: 'center', flexShrink: 0 }}>🎖️</div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+          <strong style={{ color: '#22543d', fontSize: '15px' }}>{memberUser.fullName || memberUser.name}</strong>
+          <span style={{ fontSize: '11px', fontWeight: 700, background: '#276749', color: '#fff', padding: '2px 8px', borderRadius: '12px' }}>ĐÃ XÁC NHẬN HỘI VIÊN</span>
+        </div>
+        <div style={{ margin: '3px 0 0', fontSize: '13px', color: '#2f855a' }}>
+          SĐT: <b>{memberUser.phone}</b> · Email: <b>{memberUser.email || '—'}</b> · Tích lũy: <b>{memberUser.loyaltyPoints || 0} điểm</b>
+        </div>
+        <div style={{ color: '#38a169', fontSize: '12px', marginTop: '2px' }}>✓ Đơn hàng này được gắn kết với tài khoản thành viên của bạn (không ghi nhận khách vãng lai).</div>
+      </div>
+    </div>
+  ) : (
+    <div style={{ background: '#fffaf0', border: '1px solid #feebc8', borderRadius: '12px', padding: '12px 18px', marginBottom: '20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
+      <div style={{ fontSize: '13px', color: '#744210' }}>
+        💡 <b>Đăng ký thành viên</b> để tự động nhận hóa đơn chi tiết qua Gmail & tích lũy điểm đổi quà.
+      </div>
+      <Link href="/dang-ky" style={{ color: '#8B2500', fontWeight: 600, fontSize: '13px', textDecoration: 'underline' }}>
+        Đăng ký nhanh ↗
+      </Link>
+    </div>
+  )}
+  <div className="cart-section-title"><div><span className="shop-eyebrow">BƯỚC 1</span><h2>Thông tin liên hệ</h2></div></div><div className="checkout-fields"><label>Họ và tên *<input required maxLength={100} value={form.name} onChange={(e) => change('name', e.target.value)} placeholder="Tên người nhận" /></label><label>Số điện thoại *<input required type="tel" maxLength={15} value={form.phone} onChange={(e) => change('phone', e.target.value)} placeholder="09xxxxxxxx" /></label><label>Email (nhận hóa đơn)<input type="email" maxLength={150} value={form.email} onChange={(e) => change('email', e.target.value)} placeholder="email@example.com" /></label></div>
   <div className="cart-section-title checkout-subtitle"><div><span className="shop-eyebrow">BƯỚC 2</span><h2>Hình thức nhận món</h2></div></div><div className="checkout-type-options"><label className={form.orderType === 'TAKEAWAY' ? 'chosen' : ''}><input type="radio" name="orderType" checked={form.orderType === 'TAKEAWAY'} onChange={() => change('orderType', 'TAKEAWAY')} /><span><Icon name="bag" size={25}/></span><b>Đến lấy</b><small>Nhận tại nhà hàng</small></label><label className={form.orderType === 'DELIVERY' ? 'chosen' : ''}><input type="radio" name="orderType" checked={form.orderType === 'DELIVERY'} onChange={() => change('orderType', 'DELIVERY')} /><span><Icon name="truck" size={25}/></span><b>Giao tận nơi</b><small>Nhập địa chỉ nhận hàng</small></label><label className={form.orderType === 'DINE_IN' ? 'chosen' : ''}><input type="radio" name="orderType" checked={form.orderType === 'DINE_IN'} onChange={() => change('orderType', 'DINE_IN')} /><span><Icon name="utensils" size={25}/></span><b>Dùng tại quán</b><small>Nên đặt bàn trước</small></label></div>
   {form.orderType === 'DELIVERY' && <label className="checkout-full-field">Địa chỉ giao hàng *<textarea required minLength={8} maxLength={500} rows={3} value={form.address} onChange={(e) => change('address', e.target.value)} placeholder="Số nhà, đường, phường/xã, quận/huyện..." /></label>}
   <div className="cart-section-title checkout-subtitle"><div><span className="shop-eyebrow">BƯỚC 3</span><h2>Phương thức thanh toán</h2></div></div><div className="checkout-payment-options"><label><input type="radio" name="payment" checked={form.payment === 'CASH'} onChange={() => change('payment', 'CASH')} /><span><b>Thanh toán khi nhận món</b><small>Tiền mặt tại quầy hoặc khi nhận hàng.</small></span></label><label><input type="radio" name="payment" checked={form.payment === 'BANKING'} onChange={() => change('payment', 'BANKING')} /><span><b>Chuyển khoản thủ công</b><small>Nhân viên xác nhận đơn và hướng dẫn chuyển khoản.</small></span></label><label className={momoEnabled ? (form.payment === 'MOMO' ? 'chosen' : '') : 'checkout-disabled-option'}><input type="radio" name="payment" disabled={!momoEnabled} checked={form.payment === 'MOMO'} onChange={() => change('payment', 'MOMO')} /><span><b>Ví MoMo</b><small>{momoEnabled ? 'Thanh toán online qua ví MoMo (môi trường thử nghiệm).' : `Chưa khả dụng: ${momoWhy}`}</small></span></label><label className={vnpayEnabled ? (form.payment === 'VNPAY' ? 'chosen' : '') : 'checkout-disabled-option'}><input type="radio" name="payment" disabled={!vnpayEnabled} checked={form.payment === 'VNPAY'} onChange={() => change('payment', 'VNPAY')} /><span><b>VNPay (Thẻ ATM / Visa / MasterCard / QR)</b><small>{vnpayEnabled ? 'Thanh toán online qua VNPay - hỗ trợ thẻ ngân hàng nội địa, Visa, MasterCard, JCB, QR Code (môi trường thử nghiệm).' : `Chưa khả dụng: ${vnpayWhy}`}</small></span></label><label className={zalopayEnabled ? (form.payment === 'ZALOPAY' ? 'chosen' : '') : 'checkout-disabled-option'}><input type="radio" name="payment" disabled={!zalopayEnabled} checked={form.payment === 'ZALOPAY'} onChange={() => change('payment', 'ZALOPAY')} /><span><b>Ví ZaloPay (Ví ZaloPay / QR / Thẻ ngân hàng)</b><small>{zalopayEnabled ? 'Thanh toán online qua ZaloPay - hỗ trợ ví điện tử ZaloPay, quét mã QR, thẻ ATM nội địa và Visa/MasterCard (môi trường thử nghiệm).' : `Chưa khả dụng: ${zalopayWhy}`}</small></span></label></div>

@@ -204,7 +204,7 @@ public class EmailServiceImpl implements EmailService {
               <meta name="viewport" content="width=device-width, initial-scale=1.0">
               <title>Hóa đơn thanh toán Han Seoul</title>
             </head>
-            <body style="margin: 0; padding: 20px 0; background-color: #f7fafc; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; line-height: 1.6;">
+            <body style="margin: 0; padding: 20px 0; background-color: #f7fafc; font-family: 'Segoe UI', Arial, Tahoma, Helvetica, sans-serif; line-height: 1.6;">
               <div style="max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.06); border: 1px solid #e2e8f0;">
                 
                 <!-- HEADER -->
@@ -466,7 +466,7 @@ public class EmailServiceImpl implements EmailService {
               <meta name="viewport" content="width=device-width, initial-scale=1.0">
               <title>Chào mừng thành viên Han Seoul</title>
             </head>
-            <body style="margin: 0; padding: 0; background-color: #f7fafc; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #2d3748; line-height: 1.6;">
+            <body style="margin: 0; padding: 0; background-color: #f7fafc; font-family: 'Segoe UI', Arial, Tahoma, Helvetica, sans-serif; color: #2d3748; line-height: 1.6;">
               <div style="max-width: 620px; margin: 30px auto; background: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05); border: 1px solid #edf2f7;">
                 
                 <!-- Header -->
@@ -554,7 +554,7 @@ public class EmailServiceImpl implements EmailService {
         String template = """
             <!DOCTYPE html>
             <html lang="vi">
-            <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #2d3748; padding: 20px;">
+            <body style="font-family: 'Segoe UI', Arial, Tahoma, Helvetica, sans-serif; color: #2d3748; padding: 20px; line-height: 1.6;">
               <div style="max-width: 500px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; background: #ffffff;">
                 <h3 style="color: #8B2500; margin-top: 0;">[THÔNG BÁO] Khách hàng mới đăng ký thành viên</h3>
                 <p>Hệ thống vừa ghi nhận một khách hàng mới đăng ký tài khoản thành công:</p>

@@ -1,10 +1,12 @@
 package com.restaurant.backend.controller;
 
 import com.restaurant.backend.dto.*;
+import com.restaurant.backend.entity.Customer;
 import com.restaurant.backend.entity.Order;
 import com.restaurant.backend.entity.OrderItem;
 import com.restaurant.backend.exception.BadRequestException;
 import com.restaurant.backend.mapper.OrderItemMapper;
+import com.restaurant.backend.repository.CustomerRepository;
 import com.restaurant.backend.service.OrderItemService;
 import com.restaurant.backend.service.OrderService;
 import jakarta.validation.Valid;
@@ -14,6 +16,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 /** API riêng cho khách đặt món; không mở quyền truy cập trực tiếp các API quản trị đơn hàng. */
 @RestController
@@ -22,11 +25,17 @@ public class PublicOrderController {
     private final OrderService orderService;
     private final OrderItemService orderItemService;
     private final OrderItemMapper orderItemMapper;
+    private final CustomerRepository customerRepository;
 
-    public PublicOrderController(OrderService orderService, OrderItemService orderItemService, OrderItemMapper orderItemMapper) {
+    public PublicOrderController(
+            OrderService orderService,
+            OrderItemService orderItemService,
+            OrderItemMapper orderItemMapper,
+            CustomerRepository customerRepository) {
         this.orderService = orderService;
         this.orderItemService = orderItemService;
         this.orderItemMapper = orderItemMapper;
+        this.customerRepository = customerRepository;
     }
 
     @PostMapping
@@ -35,14 +44,38 @@ public class PublicOrderController {
         if (request.items() == null || request.items().isEmpty()) throw new BadRequestException("Giỏ hàng đang trống");
         if (request.items().size() > 50) throw new BadRequestException("Mỗi đơn chỉ được có tối đa 50 dòng món");
         Order order = new Order();
-        order.setCustomerName(request.customerName().trim());
-        order.setCustomerPhone(request.customerPhone().trim());
-        order.setCustomerEmail(request.customerEmail());
+        String name = request.customerName() != null ? request.customerName().trim() : "";
+        String phone = request.customerPhone() != null ? request.customerPhone().trim() : "";
+        String email = request.customerEmail() != null ? request.customerEmail().trim() : null;
+
+        order.setCustomerName(name);
+        order.setCustomerPhone(phone);
+        order.setCustomerEmail(email);
         order.setOrderType(request.orderType());
         order.setDeliveryAddress(request.deliveryAddress());
         order.setCustomerNote(request.customerNote());
         order.setPaymentPreference(request.paymentPreference());
         order.setStatus("OPEN");
+
+        // Tự động nhận diện tài khoản hội viên nếu khách đã đăng ký thành viên
+        // Gắn customerId trực tiếp để đơn hàng không hiển thị "Khách vãng lai" trong hệ thống quản trị
+        if (customerRepository != null && !phone.isBlank()) {
+            Optional<Customer> found = customerRepository.findByPhone(phone);
+            if (found.isEmpty() && email != null && !email.isBlank()) {
+                found = customerRepository.findByEmail(email);
+            }
+            if (found.isPresent()) {
+                Customer c = found.get();
+                order.setCustomerId(c.getId().intValue());
+                if (order.getCustomerName() == null || order.getCustomerName().isBlank()) {
+                    order.setCustomerName(c.getFullName());
+                }
+                if (order.getCustomerEmail() == null && c.getEmail() != null) {
+                    order.setCustomerEmail(c.getEmail());
+                }
+            }
+        }
+
         Order saved = orderService.create(order);
         List<OrderItemResponse> items = new ArrayList<>();
         for (PublicOrderItemRequest item : request.items()) {
