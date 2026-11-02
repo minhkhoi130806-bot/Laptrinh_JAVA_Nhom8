@@ -4,6 +4,7 @@ import com.restaurant.backend.dto.*;
 import com.restaurant.backend.payment.MomoPaymentService;
 import com.restaurant.backend.payment.VnpayPaymentService;
 import com.restaurant.backend.payment.ZalopayPaymentService;
+import com.restaurant.backend.service.EmailService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
@@ -19,11 +20,20 @@ public class MomoPaymentController {
     private final MomoPaymentService momo;
     private final VnpayPaymentService vnpay;
     private final ZalopayPaymentService zalopay;
+    private final EmailService emailService;
 
-    public MomoPaymentController(MomoPaymentService momo, VnpayPaymentService vnpay, ZalopayPaymentService zalopay) {
+    public MomoPaymentController(MomoPaymentService momo, VnpayPaymentService vnpay, ZalopayPaymentService zalopay, EmailService emailService) {
         this.momo = momo;
         this.vnpay = vnpay;
         this.zalopay = zalopay;
+        this.emailService = emailService;
+    }
+
+    /** Kiểm tra cấu hình và thử gửi email thực tế qua Gmail SMTP */
+    @GetMapping("/test-email")
+    public ResponseEntity<Map<String, Object>> testEmail(@RequestParam(required = false) String to) {
+        String recipient = (to != null && !to.isBlank()) ? to : emailService.getDefaultAdminEmail();
+        return ResponseEntity.ok(emailService.testSendEmail(recipient));
     }
 
     /** Giao diện dùng để ẩn/hiện phương thức online theo cấu hình máy chủ. */

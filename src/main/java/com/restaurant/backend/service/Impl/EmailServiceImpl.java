@@ -292,6 +292,66 @@ public class EmailServiceImpl implements EmailService {
         };
     }
 
+    @Override
+    public String getDefaultAdminEmail() {
+        return adminEmail != null ? adminEmail.trim() : "";
+    }
+
+    @Override
+    public Map<String, Object> testSendEmail(String toEmail) {
+        Map<String, Object> result = new LinkedHashMap<>();
+        if (!mailEnabled) {
+            result.put("success", false);
+            result.put("message", "Tính năng gửi email đang bị tắt (app.mail.enabled=false).");
+            return result;
+        }
+        if (fromEmail == null || fromEmail.isBlank()) {
+            result.put("success", false);
+            result.put("message", "Chưa cấu hình spring.mail.username (hoặc biến MAIL_USERNAME) trong application.properties.");
+            return result;
+        }
+        if (mailPassword == null || mailPassword.isBlank()) {
+            result.put("success", false);
+            result.put("message", "Chưa cấu hình spring.mail.password (hoặc biến MAIL_PASSWORD) trong application.properties. Bạn cần tạo Mật khẩu ứng dụng 16 ký tự tại https://myaccount.google.com/apppasswords");
+            return result;
+        }
+        if (toEmail == null || toEmail.isBlank() || !isValidEmail(toEmail)) {
+            result.put("success", false);
+            result.put("message", "Địa chỉ email nhận không hợp lệ: " + toEmail);
+            return result;
+        }
+
+        try {
+            if (mailSender == null) {
+                result.put("success", false);
+                result.put("message", "mailSender chưa được khởi tạo. Hãy đảm bảo Spring Boot Mail Starter đã được nạp.");
+                return result;
+            }
+            MimeMessage message = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, StandardCharsets.UTF_8.name());
+            helper.setFrom(fromEmail, fromName);
+            helper.setTo(toEmail.trim());
+            helper.setSubject("[Han Seoul] Thử nghiệm gửi email hệ thống");
+            helper.setText("<h2>Xin chào!</h2><p>Hệ thống gửi email của nhà hàng Hàn Quốc <strong>Han Seoul</strong> đã hoạt động chính xác.</p><p>Thời gian thử nghiệm: " + LocalDateTime.now().format(DATE_FORMAT) + "</p>", true);
+
+            mailSender.send(message);
+            result.put("success", true);
+            result.put("message", "Đã gửi email thử nghiệm thành công tới " + toEmail + "! Hãy kiểm tra Hộp thư đến (Inbox) hoặc Thư rác (Spam).");
+            result.put("from", fromEmail);
+            result.put("to", toEmail);
+        } catch (Exception e) {
+            log.error("Lỗi khi gửi email thử nghiệm: {}", e.getMessage(), e);
+            result.put("success", false);
+            result.put("error", e.getMessage());
+            if (e.getMessage() != null && e.getMessage().contains("535")) {
+                result.put("hint", "Lỗi xác thực Google (535): Bạn đang dùng mật khẩu Gmail thông thường. Bắt buộc phải tạo 'Mật khẩu ứng dụng' (16 ký tự) tại https://myaccount.google.com/apppasswords");
+            } else if (e.getMessage() != null && (e.getMessage().contains("Connection timed out") || e.getMessage().contains("ConnectException"))) {
+                result.put("hint", "Không thể kết nối tới smtp.gmail.com:587. Kiểm tra kết nối Internet hoặc tường lửa chặn cổng 587.");
+            }
+        }
+        return result;
+    }
+
     private static boolean isValidEmail(String email) {
         return email != null && email.matches("^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,6}$");
     }
