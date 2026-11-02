@@ -25,4 +25,8 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
 
     List<Reservation> findByTableIdAndStatusAndReservedAtBetween(
             Long tableId, ReservationStatus status, LocalDateTime from, LocalDateTime to);
+    @org.springframework.data.jpa.repository.Modifying
+    @org.springframework.transaction.annotation.Transactional
+    @Query("DELETE FROM Reservation r WHERE r.customer.id = :customerId")
+    void deleteByCustomerId(@Param("customerId") Long customerId);
 }

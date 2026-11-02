@@ -41,7 +41,7 @@ public class Customer {
     private Integer loyaltyPoints = 0;
  
     // 1 khách - N lượt đặt bàn
-    @OneToMany(mappedBy = "customer")
+    @OneToMany(mappedBy = "customer", cascade = jakarta.persistence.CascadeType.ALL, orphanRemoval = true)
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
     private List<Reservation> reservations = new ArrayList<>();

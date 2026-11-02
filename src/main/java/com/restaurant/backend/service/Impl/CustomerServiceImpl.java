@@ -5,6 +5,7 @@ import com.restaurant.backend.entity.Customer;
 import com.restaurant.backend.exception.BadRequestException;
 import com.restaurant.backend.exception.NotFoundException;
 import com.restaurant.backend.repository.CustomerRepository;
+import com.restaurant.backend.repository.ReservationRepository;
 import com.restaurant.backend.repository.UserAccountRepository;
 import com.restaurant.backend.service.CustomerService;
 import com.restaurant.backend.service.EmailService;
@@ -20,14 +21,17 @@ public class CustomerServiceImpl implements CustomerService {
 
     private final CustomerRepository customerRepository;
     private final UserAccountRepository userAccountRepository;
+    private final ReservationRepository reservationRepository;
     private final EmailService emailService;
 
     public CustomerServiceImpl(
             CustomerRepository customerRepository,
             UserAccountRepository userAccountRepository,
+            ReservationRepository reservationRepository,
             EmailService emailService) {
         this.customerRepository = customerRepository;
         this.userAccountRepository = userAccountRepository;
+        this.reservationRepository = reservationRepository;
         this.emailService = emailService;
     }
 
@@ -131,6 +135,8 @@ public class CustomerServiceImpl implements CustomerService {
             throw new BadRequestException("Chỉ xóa vĩnh viễn được khách hàng đang trong thùng rác");
         }
         userAccountRepository.findByCustomerId(id).ifPresent(userAccountRepository::delete);
+        // Tự động xóa các lượt đặt bàn liên quan để không vi phạm ràng buộc khóa ngoại
+        reservationRepository.deleteByCustomerId(id);
         customerRepository.delete(existing);
     }
 
