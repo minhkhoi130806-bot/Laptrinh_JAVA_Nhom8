@@ -18,7 +18,14 @@ export default function AccountPage() {
      <span className="shop-eyebrow">THÀNH VIÊN HAN SEOUL</span>
      <h2>{user?.fullName || user?.name || 'Khách ghé thăm'}</h2>
      <p>{user?.email || user?.phone || 'Đăng nhập để quản lý tài khoản của bạn.'}</p>
-     {token ? <button className="shop-outline-link account-session-button" onClick={logout}><Icon name="logout" size={17}/>Đăng xuất</button> : <Link className="shop-button" href="/login">Đăng nhập <Icon name="arrowUpRight" size={18}/></Link>}
+     {token ? (
+       <button className="shop-outline-link account-session-button" onClick={logout}><Icon name="logout" size={17}/>Đăng xuất</button>
+     ) : (
+       <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', flexWrap: 'wrap', marginTop: '12px' }}>
+         <Link className="shop-button" href="/dang-ky">Đăng ký thành viên <Icon name="arrowUpRight" size={17}/></Link>
+         <Link className="shop-outline-link" href="/login">Đăng nhập nhân viên</Link>
+       </div>
+     )}
     </div>
    </div>
    <div className="account-shortcuts">

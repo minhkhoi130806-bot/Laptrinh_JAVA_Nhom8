@@ -1,9 +1,11 @@
 package com.restaurant.backend.service.Impl;
 
+import com.restaurant.backend.entity.Customer;
 import com.restaurant.backend.entity.Invoice;
 import com.restaurant.backend.entity.Menuitem;
 import com.restaurant.backend.entity.Order;
 import com.restaurant.backend.entity.OrderItem;
+import com.restaurant.backend.repository.CustomerRepository;
 import com.restaurant.backend.repository.MenuItemRepository;
 import com.restaurant.backend.service.EmailService;
 import jakarta.mail.internet.MimeMessage;
@@ -37,6 +39,7 @@ public class EmailServiceImpl implements EmailService {
     private JavaMailSender mailSender;
 
     private final MenuItemRepository menuItemRepository;
+    private final CustomerRepository customerRepository;
 
     @Value("${spring.mail.username:}")
     private String fromEmail;
@@ -54,7 +57,12 @@ public class EmailServiceImpl implements EmailService {
     private boolean mailEnabled;
 
     public EmailServiceImpl(MenuItemRepository menuItemRepository) {
+        this(menuItemRepository, null);
+    }
+
+    public EmailServiceImpl(MenuItemRepository menuItemRepository, CustomerRepository customerRepository) {
         this.menuItemRepository = menuItemRepository;
+        this.customerRepository = customerRepository;
     }
 
     @Override
@@ -69,6 +77,22 @@ public class EmailServiceImpl implements EmailService {
             log.warn("Gmail SMTP chưa được cấu hình (thiếu MAIL_USERNAME hoặc MAIL_PASSWORD trong application.properties/env). "
                     + "Đơn hàng #{} đã thanh toán thành công nhưng chưa thể gửi email thực tế.", order.getId());
             return;
+        }
+
+        // Nếu đơn hàng chưa có email khách, tự tra cứu từ hồ sơ hội viên theo số điện thoại
+        if ((order.getCustomerEmail() == null || order.getCustomerEmail().isBlank())
+                && order.getCustomerPhone() != null && !order.getCustomerPhone().isBlank()
+                && customerRepository != null) {
+            try {
+                customerRepository.findByPhone(order.getCustomerPhone().trim())
+                        .ifPresent(c -> {
+                            if (c.getEmail() != null && !c.getEmail().isBlank()) {
+                                order.setCustomerEmail(c.getEmail().trim());
+                            }
+                        });
+            } catch (Exception ex) {
+                log.debug("Tra cứu email hội viên theo số điện thoại không thành công: {}", ex.getMessage());
+            }
         }
 
         // Tập hợp danh sách người nhận (email của khách + các email quản trị viên nếu có)
@@ -366,6 +390,189 @@ public class EmailServiceImpl implements EmailService {
             }
         }
         return result;
+    }
+
+    @Override
+    @Async
+    public void sendCustomerWelcomeEmail(Customer customer) {
+        if (!mailEnabled || customer == null) {
+            return;
+        }
+
+        if (mailSender == null || fromEmail == null || fromEmail.isBlank() || mailPassword == null || mailPassword.isBlank()) {
+            log.warn("Gmail SMTP chưa được cấu hình. Bỏ qua gửi email chào mừng hội viên {}.", customer.getFullName());
+            return;
+        }
+
+        String customerEmail = customer.getEmail();
+        if (customerEmail == null || customerEmail.isBlank() || !isValidEmail(customerEmail)) {
+            log.info("Khách hàng {} không có email hợp lệ để gửi thư chào mừng", customer.getFullName());
+            return;
+        }
+
+        String welcomeSubject = "[Han Seoul] Chào mừng bạn gia nhập thành viên Nhà hàng Hàn Quốc Han Seoul!";
+        String welcomeHtml = buildWelcomeHtmlContent(customer);
+
+        // 1. Gửi email chào mừng tới khách hàng
+        try {
+            MimeMessage message = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, MimeMessageHelper.MULTIPART_MODE_MIXED_RELATED, StandardCharsets.UTF_8.name());
+            helper.setFrom(fromEmail, fromName);
+            helper.setTo(customerEmail.trim());
+            helper.setSubject(welcomeSubject);
+            helper.setText(welcomeHtml, true);
+            mailSender.send(message);
+            log.info("ĐÃ GỬI EMAIL CHÀO MỪNG tới khách hàng: {} ({})", customer.getFullName(), customerEmail);
+        } catch (Exception e) {
+            log.error("Không thể gửi email chào mừng tới {}: {}", customerEmail, e.getMessage());
+        }
+
+        // 2. Gửi thông báo cho quản trị viên nhà hàng
+        if (adminEmail != null && !adminEmail.isBlank()) {
+            String adminSubject = "[Han Seoul] Khách hàng mới đăng ký tài khoản: " + customer.getFullName();
+            String adminNotificationHtml = buildAdminCustomerNotificationHtml(customer);
+            for (String adm : adminEmail.split("[,;]")) {
+                String trimmed = adm.trim();
+                if (isValidEmail(trimmed)) {
+                    try {
+                        MimeMessage admMsg = mailSender.createMimeMessage();
+                        MimeMessageHelper admHelper = new MimeMessageHelper(admMsg, StandardCharsets.UTF_8.name());
+                        admHelper.setFrom(fromEmail, fromName);
+                        admHelper.setTo(trimmed);
+                        admHelper.setSubject(adminSubject);
+                        admHelper.setText(adminNotificationHtml, true);
+                        mailSender.send(admMsg);
+                        log.info("ĐÃ GỬI THÔNG BÁO hội viên mới tới admin: {}", trimmed);
+                    } catch (Exception e) {
+                        log.error("Không thể gửi thông báo admin tới {}: {}", trimmed, e.getMessage());
+                    }
+                }
+            }
+        }
+    }
+
+    private String buildWelcomeHtmlContent(Customer customer) {
+        String name = customer.getFullName() != null ? escapeHtml(customer.getFullName()) : "Quý khách";
+        String phone = customer.getPhone() != null ? escapeHtml(customer.getPhone()) : "—";
+        String email = customer.getEmail() != null ? escapeHtml(customer.getEmail()) : "—";
+        int points = customer.getLoyaltyPoints() != null ? customer.getLoyaltyPoints() : 0;
+
+        String template = """
+            <!DOCTYPE html>
+            <html lang="vi">
+            <head>
+              <meta charset="UTF-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1.0">
+              <title>Chào mừng thành viên Han Seoul</title>
+            </head>
+            <body style="margin: 0; padding: 0; background-color: #f7fafc; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #2d3748; line-height: 1.6;">
+              <div style="max-width: 620px; margin: 30px auto; background: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05); border: 1px solid #edf2f7;">
+                
+                <!-- Header -->
+                <div style="background: linear-gradient(135deg, #8B2500 0%, #b83a1b 100%); color: #ffffff; padding: 32px 24px; text-align: center;">
+                  <span style="display: inline-block; background: rgba(255,255,255,0.2); padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 8px;">
+                    HAN SEOUL MEMBERSHIP
+                  </span>
+                  <h1 style="margin: 0; font-size: 24px; font-weight: 700; letter-spacing: -0.5px;">CHÀO MỪNG BẠN GIA NHẬP!</h1>
+                  <p style="margin: 8px 0 0; font-size: 14px; opacity: 0.9;">Nhà hàng Ẩm thực Hàn Quốc Han Seoul xin chào quý khách</p>
+                </div>
+
+                <!-- Body -->
+                <div style="padding: 28px 24px;">
+                  <p style="font-size: 16px; margin: 0 0 16px; color: #1a202c;">
+                    Xin chào <strong>{{NAME}}</strong>,
+                  </p>
+                  <p style="font-size: 14px; color: #4a5568; margin: 0 0 20px;">
+                    Cảm ơn bạn đã đăng ký tài khoản thành viên tại <strong>Han Seoul</strong>. Từ nay, bạn sẽ nhận được các đặc quyền hấp dẫn cùng trải nghiệm ẩm thực chuẩn vị Hàn Quốc:
+                  </p>
+
+                  <!-- Đặc quyền -->
+                  <div style="background-color: #fffaf0; border-left: 4px solid #dd6b20; padding: 14px 16px; border-radius: 4px; margin-bottom: 24px;">
+                    <ul style="margin: 0; padding-left: 18px; font-size: 13.5px; color: #7b341e;">
+                      <li style="margin-bottom: 6px;"><strong>Tích điểm tự động:</strong> Mỗi 10.000 VNĐ thanh toán được tích 1 điểm thưởng.</li>
+                      <li style="margin-bottom: 6px;"><strong>Hóa đơn điện tử qua Gmail:</strong> Tự động nhận hóa đơn chi tiết mỗi khi bạn thanh toán (ZaloPay, VNPay, MoMo, Tiền mặt).</li>
+                      <li><strong>Ưu đãi thành viên:</strong> Nhận quà tặng và voucher giảm giá trong dịp sinh nhật & lễ hội ẩm thực.</li>
+                    </ul>
+                  </div>
+
+                  <!-- Thông tin tài khoản -->
+                  <h3 style="font-size: 14px; text-transform: uppercase; letter-spacing: 1px; color: #718096; margin: 0 0 12px; border-bottom: 2px solid #edf2f7; padding-bottom: 6px;">
+                    Thông tin tài khoản thành viên
+                  </h3>
+                  <table style="width: 100%; font-size: 14px; margin-bottom: 24px; border-collapse: collapse;">
+                    <tr>
+                      <td style="padding: 6px 0; color: #718096; width: 35%;">Họ và tên:</td>
+                      <td style="padding: 6px 0; font-weight: 600; color: #2d3748;">{{NAME}}</td>
+                    </tr>
+                    <tr>
+                      <td style="padding: 6px 0; color: #718096;">Số điện thoại:</td>
+                      <td style="padding: 6px 0; font-weight: 600; color: #2d3748;">{{PHONE}}</td>
+                    </tr>
+                    <tr>
+                      <td style="padding: 6px 0; color: #718096;">Email nhận tin:</td>
+                      <td style="padding: 6px 0; font-weight: 600; color: #2d3748;">{{EMAIL}}</td>
+                    </tr>
+                    <tr>
+                      <td style="padding: 6px 0; color: #718096;">Điểm khởi đầu:</td>
+                      <td style="padding: 6px 0; font-weight: 700; color: #c53030;">{{POINTS}} điểm</td>
+                    </tr>
+                  </table>
+
+                  <!-- CTA Button -->
+                  <div style="text-align: center; margin: 30px 0 15px;">
+                    <a href="http://localhost:3000/thuc-don" style="background-color: #8B2500; color: #ffffff; text-decoration: none; padding: 12px 28px; border-radius: 6px; font-size: 14px; font-weight: 600; display: inline-block;">
+                      Khám phá thực đơn & Đặt bàn ngay &rarr;
+                    </a>
+                  </div>
+                </div>
+
+                <!-- Footer -->
+                <div style="background-color: #edf2f7; padding: 18px 24px; text-align: center; font-size: 12px; color: #718096;">
+                  <p style="margin: 0 0 4px; font-weight: 600; color: #4a5568;">Nhà hàng Hàn Quốc Han Seoul</p>
+                  <p style="margin: 0 0 4px;">Ẩm thực chuẩn vị truyền thống Hàn Quốc</p>
+                  <p style="margin: 0; font-size: 11px; color: #a0aec0;">Email này được gửi tự động từ hệ thống thành viên Han Seoul.</p>
+                </div>
+
+              </div>
+            </body>
+            </html>
+            """;
+
+        return template.replace("{{NAME}}", name)
+                .replace("{{PHONE}}", phone)
+                .replace("{{EMAIL}}", email)
+                .replace("{{POINTS}}", String.valueOf(points));
+    }
+
+    private String buildAdminCustomerNotificationHtml(Customer customer) {
+        String name = customer.getFullName() != null ? escapeHtml(customer.getFullName()) : "Khách hàng";
+        String phone = customer.getPhone() != null ? escapeHtml(customer.getPhone()) : "—";
+        String email = customer.getEmail() != null ? escapeHtml(customer.getEmail()) : "—";
+        String time = LocalDateTime.now().format(DATE_FORMAT);
+
+        String template = """
+            <!DOCTYPE html>
+            <html lang="vi">
+            <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #2d3748; padding: 20px;">
+              <div style="max-width: 500px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; background: #ffffff;">
+                <h3 style="color: #8B2500; margin-top: 0;">[THÔNG BÁO] Khách hàng mới đăng ký thành viên</h3>
+                <p>Hệ thống vừa ghi nhận một khách hàng mới đăng ký tài khoản thành công:</p>
+                <ul style="line-height: 1.8;">
+                  <li><strong>Họ tên:</strong> {{NAME}}</li>
+                  <li><strong>Số điện thoại:</strong> {{PHONE}}</li>
+                  <li><strong>Email:</strong> {{EMAIL}}</li>
+                  <li><strong>Thời gian:</strong> {{TIME}}</li>
+                </ul>
+                <p style="font-size: 12px; color: #718096;">Thông báo tự động từ hệ thống quản trị Han Seoul.</p>
+              </div>
+            </body>
+            </html>
+            """;
+
+        return template.replace("{{NAME}}", name)
+                .replace("{{PHONE}}", phone)
+                .replace("{{EMAIL}}", email)
+                .replace("{{TIME}}", time);
     }
 
     private static boolean isValidEmail(String email) {

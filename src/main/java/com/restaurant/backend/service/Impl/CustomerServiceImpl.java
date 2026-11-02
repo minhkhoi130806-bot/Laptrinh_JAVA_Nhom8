@@ -7,6 +7,7 @@ import com.restaurant.backend.exception.NotFoundException;
 import com.restaurant.backend.repository.CustomerRepository;
 import com.restaurant.backend.repository.UserAccountRepository;
 import com.restaurant.backend.service.CustomerService;
+import com.restaurant.backend.service.EmailService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 

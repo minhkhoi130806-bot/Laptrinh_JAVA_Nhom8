@@ -1,5 +1,6 @@
 package com.restaurant.backend.service;
 
+import com.restaurant.backend.entity.Customer;
 import com.restaurant.backend.entity.Invoice;
 import com.restaurant.backend.entity.Order;
 import com.restaurant.backend.entity.OrderItem;
@@ -12,10 +13,17 @@ public interface EmailService {
 
     /**
      * Gửi email xác nhận thanh toán thành công:
-     * - Gửi hóa đơn chi tiết tới email của khách hàng (order.getCustomerEmail()).
-     * - Đồng thời gửi thông báo tới email quản trị viên của nhà hàng (nếu có cấu hình).
+     * - Gửi hóa đơn chi tiết tới email của khách hàng (hoặc tự động tra cứu từ hồ sơ hội viên nếu đơn chưa có email).
+     * - Đồng thời gửi thông báo tới email quản trị viên của nhà hàng.
      */
     void sendPaymentSuccessEmail(Order order, Invoice invoice, List<OrderItem> items);
+
+    /**
+     * Gửi email chào mừng hội viên khi khách hàng mới đăng ký tài khoản:
+     * - Gửi thư chào mừng và giới thiệu nhà hàng/ưu đãi tới Gmail của khách hàng.
+     * - Đồng thời gửi thông báo tới email quản trị viên.
+     */
+    void sendCustomerWelcomeEmail(Customer customer);
 
     /**
      * Gửi email kiểm tra cấu hình SMTP trực tiếp và trả về chi tiết thành công/lỗi.

@@ -152,4 +152,30 @@ class EmailServiceImplTest {
         // Đã gửi tới 4 người: khách hàng + 3 admin
         assertEquals(4, mailSender.sentMessages.size());
     }
+
+    @Test
+    @DisplayName("Gửi email chào mừng khi khách hàng mới đăng ký tài khoản")
+    void shouldSendWelcomeEmailOnCustomerRegister() {
+        RecordingMailSender mailSender = new RecordingMailSender();
+        EmailServiceImpl emailService = new EmailServiceImpl(createFakeMenuItemRepo());
+
+        ReflectionTestUtils.setField(emailService, "mailEnabled", true);
+        ReflectionTestUtils.setField(emailService, "mailSender", mailSender);
+        ReflectionTestUtils.setField(emailService, "fromEmail", "minhkhoi130806@gmail.com");
+        ReflectionTestUtils.setField(emailService, "mailPassword", "someAppPassword123");
+        ReflectionTestUtils.setField(emailService, "adminEmail", "minhkhoi130806@gmail.com");
+        ReflectionTestUtils.setField(emailService, "fromName", "Han Seoul");
+
+        com.restaurant.backend.entity.Customer customer = new com.restaurant.backend.entity.Customer();
+        customer.setId(10L);
+        customer.setFullName("Nguyen Thi Mai");
+        customer.setPhone("0987654321");
+        customer.setEmail("mainguyen@gmail.com");
+        customer.setLoyaltyPoints(0);
+
+        assertDoesNotThrow(() -> emailService.sendCustomerWelcomeEmail(customer));
+
+        // Đã gửi 2 email: 1 thư chào mừng cho khách (mainguyen@gmail.com) và 1 thông báo cho admin (minhkhoi130806@gmail.com)
+        assertEquals(2, mailSender.sentMessages.size());
+    }
 }
