@@ -80,58 +80,26 @@ function RegisterForm() {
       if (res && res.devOtp) {
         setDevOtpHint(res.devOtp);
       }
+      // Chuyển sang Bước 2: Bắt buộc nhập mã OTP đã gửi về Gmail
       setStep(2);
       setCountdown(60);
       setCanResend(false);
       setOtp('');
     } catch (err) {
-      // Dự phòng thông minh: Nếu backend đang chạy phiên bản cũ chưa nạp route OTP mới (trả 401 token / 404),
-      // tự động chuyển tiếp đăng ký trực tiếp qua public-register để khách hàng không bao giờ bị nghẽn
-      if (err.message && (err.message.includes('token') || err.message.includes('401') || err.message.includes('404'))) {
-        try {
-          const data = await api('/customers/public-register', {
-            method: 'POST',
-            body: {
-              fullName: cleanName,
-              phone: cleanPhone,
-              email: cleanEmail,
-            },
-          });
-          try {
-            localStorage.setItem(
-              'currentUser',
-              JSON.stringify({
-                id: data.id,
-                fullName: data.fullName,
-                name: data.fullName,
-                phone: data.phone,
-                email: data.email,
-                loyaltyPoints: data.loyaltyPoints || 50,
-              })
-            );
-            window.dispatchEvent(new Event('storage'));
-          } catch {}
-          setSuccess(data);
-          return;
-        } catch (fallbackErr) {
-          setError(fallbackErr.message || 'Không thể đăng ký. Vui lòng kiểm tra lại thông tin.');
-          return;
-        }
-      }
       setError(err.message || 'Không thể gửi mã xác thực. Vui lòng kiểm tra lại thông tin.');
     } finally {
       setBusy(false);
     }
   }
 
-  // Bước 2: Xác nhận OTP & Hoàn tất đăng ký
+  // Bước 2: Bắt buộc nhập đúng mã OTP gửi về Gmail mới hoàn tất đăng ký
   async function handleVerifyOtp(e) {
     e.preventDefault();
     setError('');
 
     const cleanOtp = otp.trim();
     if (!cleanOtp) {
-      setError('Vui lòng nhập mã OTP 6 chữ số từ Gmail.');
+      setError('Vui lòng nhập mã OTP 6 chữ số nhận được từ Gmail.');
       return;
     }
 
@@ -147,7 +115,7 @@ function RegisterForm() {
         },
       });
 
-      // Lưu tài khoản vào trình duyệt để tự động nhận diện khi đặt món
+      // Lưu tài khoản hội viên vào trình duyệt để tự động nhận diện khi đặt món
       try {
         localStorage.setItem(
           'currentUser',
@@ -163,6 +131,7 @@ function RegisterForm() {
         window.dispatchEvent(new Event('storage'));
       } catch {}
 
+      // Chỉ khi xác thực OTP thành công trên máy chủ thì mới hoàn tất đăng ký!
       setSuccess(data);
     } catch (err) {
       setError(err.message || 'Mã OTP không chính xác hoặc đã hết hạn.');
