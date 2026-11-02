@@ -76,21 +76,34 @@ export default function LoginPage() {
         </div>
       </section>
 
-      <section className="shop-section shop-container checkout-layout" style={{ maxWidth: '580px', margin: '0 auto' }}>
-        <form className="checkout-form" onSubmit={handleLogin} style={{ padding: '36px 30px' }}>
-          <div style={{ textAlign: 'center', marginBottom: '24px' }}>
-            <div style={{ fontSize: '42px', marginBottom: '12px' }}>🎖️</div>
-            <h2 style={{ fontSize: '24px', margin: '0 0 8px', color: '#8B2500' }}>
-              Chào mừng bạn trở lại!
-            </h2>
-            <p style={{ color: '#718096', fontSize: '14px', margin: 0 }}>
-              Nhập số điện thoại (hoặc email) bạn đã đăng ký thành viên.
-            </p>
+      <section className="shop-auth-wrapper">
+        <div className="shop-auth-card">
+          {/* TABS CHUYỂN ĐỔI NHANH GIỮA ĐĂNG NHẬP VÀ ĐĂNG KÝ */}
+          <div className="shop-auth-tabs">
+            <span className="shop-auth-tab active">Đăng nhập</span>
+            <Link
+              href={`/dang-ky${redirectUrl ? `?redirect=${encodeURIComponent(redirectUrl)}` : ''}`}
+              className="shop-auth-tab"
+            >
+              Đăng ký mới
+            </Link>
           </div>
 
-          <div className="checkout-fields" style={{ gridTemplateColumns: '1fr', gap: '16px' }}>
-            <label>
-              Số điện thoại hội viên *
+          <form onSubmit={handleLogin}>
+            <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+              <div style={{ fontSize: '38px', marginBottom: '8px' }}>🎖️</div>
+              <h2 style={{ fontSize: '22px', margin: '0 0 6px', color: '#1a202c' }}>
+                Chào mừng bạn trở lại!
+              </h2>
+              <p style={{ color: '#718096', fontSize: '13.5px', margin: 0 }}>
+                Nhập số điện thoại (hoặc email) bạn đã đăng ký thành viên.
+              </p>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '18px' }}>
+              <label style={{ fontSize: '13.5px', fontWeight: 600, color: '#2d3748' }}>
+                Số điện thoại hội viên *
+              </label>
               <input
                 required
                 type="text"
@@ -98,62 +111,68 @@ export default function LoginPage() {
                 onChange={(e) => setPhone(e.target.value)}
                 placeholder="Ví dụ: 0912345678"
                 autoFocus
+                style={{
+                  width: '100%',
+                  padding: '12px 16px',
+                  border: '1px solid #cbd5e0',
+                  borderRadius: '10px',
+                  fontSize: '14px',
+                  outline: 'none',
+                }}
               />
-            </label>
-          </div>
-
-          {error && (
-            <div
-              style={{
-                background: '#fff5f5',
-                border: '1px solid #feb2b2',
-                borderRadius: '8px',
-                padding: '12px 16px',
-                color: '#c53030',
-                fontSize: '13.5px',
-                marginTop: '16px',
-              }}
-            >
-              <p style={{ margin: '0 0 6px' }}>{error}</p>
-              <Link
-                href={`/dang-ky${redirectUrl ? `?redirect=${encodeURIComponent(redirectUrl)}` : ''}`}
-                style={{ color: '#8B2500', fontWeight: 700, textDecoration: 'underline' }}
-              >
-                👉 Bạn chưa có tài khoản? Đăng ký ngay để nhận 50 điểm thưởng & giảm 10%!
-              </Link>
             </div>
-          )}
 
-          <div style={{ marginTop: '24px' }}>
+            {error && (
+              <div
+                style={{
+                  background: '#fff5f5',
+                  border: '1px solid #feb2b2',
+                  borderRadius: '10px',
+                  padding: '12px 16px',
+                  color: '#c53030',
+                  fontSize: '13.5px',
+                  marginBottom: '18px',
+                }}
+              >
+                <p style={{ margin: '0 0 6px' }}>{error}</p>
+                <Link
+                  href={`/dang-ky${redirectUrl ? `?redirect=${encodeURIComponent(redirectUrl)}` : ''}`}
+                  style={{ color: '#8B2500', fontWeight: 700, textDecoration: 'underline' }}
+                >
+                  👉 Chưa có tài khoản? Đăng ký ngay để nhận 50 điểm & giảm 10%!
+                </Link>
+              </div>
+            )}
+
             <button
               className="shop-button"
               type="submit"
               disabled={busy}
-              style={{ width: '100%', justifyContent: 'center' }}
+              style={{ width: '100%', justifyContent: 'center', padding: '12px', fontSize: '15px' }}
             >
               {busy ? 'Đang kiểm tra...' : 'Đăng nhập ngay'} <Icon name="arrowUpRight" size={17} />
             </button>
-          </div>
 
-          <div
-            style={{
-              marginTop: '24px',
-              paddingTop: '20px',
-              borderTop: '1px dashed #e2e8f0',
-              textAlign: 'center',
-              fontSize: '14px',
-              color: '#718096',
-            }}
-          >
-            Chưa có tài khoản hội viên?{' '}
-            <Link
-              href={`/dang-ky${redirectUrl ? `?redirect=${encodeURIComponent(redirectUrl)}` : ''}`}
-              style={{ color: '#8B2500', fontWeight: 700 }}
+            <div
+              style={{
+                marginTop: '22px',
+                paddingTop: '18px',
+                borderTop: '1px dashed #e2e8f0',
+                textAlign: 'center',
+                fontSize: '13.5px',
+                color: '#718096',
+              }}
             >
-              Đăng ký thành viên mới ↗
-            </Link>
-          </div>
-        </form>
+              Chưa có tài khoản hội viên?{' '}
+              <Link
+                href={`/dang-ky${redirectUrl ? `?redirect=${encodeURIComponent(redirectUrl)}` : ''}`}
+                style={{ color: '#8B2500', fontWeight: 700 }}
+              >
+                Đăng ký ngay (30 giây) ↗
+              </Link>
+            </div>
+          </form>
+        </div>
       </section>
     </ShopLayout>
   );

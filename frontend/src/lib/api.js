@@ -1,14 +1,25 @@
 // Gọi API Spring Boot qua proxy /api (xem next.config.mjs). Dùng chung cho admin và shop.
-// Tự động gắn kèm Authorization: Bearer <token> từ localStorage (Nhiệm vụ Ngô Minh Khôi - Tuần 3)
+// Tự động gắn kèm Authorization: Bearer <token> từ localStorage cho các API quản trị nội bộ
 export async function api(path, { method = 'GET', body, signal } = {}) {
   const isForm = typeof FormData !== 'undefined' && body instanceof FormData;
   const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+
+  const isPublicShopEndpoint =
+    path.startsWith('/customers/public-') ||
+    path.startsWith('/reservations/public') ||
+    path.startsWith('/public-orders') ||
+    path.startsWith('/payments/') ||
+    path.startsWith('/menu-items') ||
+    path.startsWith('/categories') ||
+    path.startsWith('/contact') ||
+    path.startsWith('/event-inquiries');
 
   const headers = {};
   if (body && !isForm) {
     headers['Content-Type'] = 'application/json';
   }
-  if (token) {
+  // Chỉ gửi token nhân viên cho các API nội bộ / quản trị, không gửi token cho API khách hàng công khai
+  if (token && !isPublicShopEndpoint) {
     headers['Authorization'] = `Bearer ${token}`;
   }
 
@@ -19,15 +30,18 @@ export async function api(path, { method = 'GET', body, signal } = {}) {
     signal,
   });
 
-  if (res.status === 401 && !path.startsWith('/auth/login') && typeof window !== 'undefined') {
+  // Chỉ xóa token nhân viên khi API nội bộ bị 401. Không tự xóa currentUser (tài khoản hội viên)
+  if (res.status === 401 && !isPublicShopEndpoint && !path.startsWith('/auth/login') && typeof window !== 'undefined') {
     localStorage.removeItem('token');
-    localStorage.removeItem('currentUser');
     window.dispatchEvent(new Event('auth:expired'));
   }
 
   if (!res.ok) {
     let msg = `Lỗi ${res.status}`;
-    try { msg = (await res.json()).message || msg; } catch {}
+    try {
+      const data = await res.json();
+      msg = data.message || msg;
+    } catch {}
     throw new Error(msg);
   }
   return res.status === 204 ? null : res.json();

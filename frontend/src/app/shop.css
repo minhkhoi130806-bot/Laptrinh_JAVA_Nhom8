@@ -579,3 +579,48 @@
   .shop-brand b { font-size: 12px; letter-spacing: 0; }
   .shop-brand small { font-size: 6px; letter-spacing: .8px; }
 }
+
+/* Auth Layout (Dang Nhap & Dang Ky) */
+.shop-auth-wrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 40px 16px 80px;
+  width: 100%;
+}
+
+.shop-auth-card {
+  width: 100%;
+  max-width: 480px;
+  background: #ffffff;
+  border: 1px solid #ede8de;
+  border-radius: 20px;
+  padding: 36px 32px;
+  box-shadow: 0 12px 36px rgba(38, 53, 44, 0.06);
+}
+
+.shop-auth-tabs {
+  display: flex;
+  background: #f4ede1;
+  border-radius: 12px;
+  padding: 4px;
+  margin-bottom: 24px;
+}
+
+.shop-auth-tab {
+  flex: 1;
+  text-align: center;
+  padding: 10px 14px;
+  border-radius: 9px;
+  font-size: 14px;
+  font-weight: 650;
+  text-decoration: none;
+  color: #718096;
+  transition: all 0.2s ease;
+}
+
+.shop-auth-tab.active {
+  background: #ffffff;
+  color: #8B2500;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}

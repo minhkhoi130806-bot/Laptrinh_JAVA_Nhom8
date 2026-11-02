@@ -11,6 +11,7 @@ export default function ShopHeader() {
   const [favoriteCount, setFavoriteCount] = useState(0);
   const [itemsInCart, setItemsInCart] = useState(0);
   const [hasStaffToken, setHasStaffToken] = useState(false);
+  const [currentUser, setCurrentUser] = useState(null);
 
   useEffect(() => {
     const refresh = () => {
@@ -18,6 +19,8 @@ export default function ShopHeader() {
       setItemsInCart(cartCount(readCart()));
       try {
         setHasStaffToken(Boolean(localStorage.getItem('token')));
+        const user = JSON.parse(localStorage.getItem('currentUser') || 'null');
+        setCurrentUser(user);
       } catch {}
     };
     refresh();
@@ -97,9 +100,53 @@ export default function ShopHeader() {
             <Icon name="bag" size={19} />
             {itemsInCart > 0 && <span>{itemsInCart}</span>}
           </Link>
-          <Link className="shop-header-account" href="/tai-khoan" aria-label="Tài khoản">
-            <Icon name="user" size={19} />
-          </Link>
+
+          {/* Hiển thị trạng thái đăng nhập hội viên rõ ràng trên Header */}
+          {currentUser ? (
+            <Link
+              className="shop-header-account"
+              href="/tai-khoan"
+              aria-label="Tài khoản hội viên"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '4px 10px',
+                background: '#fbf9f5',
+                border: '1px solid #ebd9c5',
+                borderRadius: '20px',
+                textDecoration: 'none',
+                color: '#8B2500',
+                fontSize: '12.5px',
+                fontWeight: 650,
+              }}
+              title={`Tài khoản: ${currentUser.fullName || currentUser.name} (${currentUser.loyaltyPoints || 0} điểm)`}
+            >
+              <span
+                style={{
+                  width: '22px',
+                  height: '22px',
+                  borderRadius: '50%',
+                  background: '#8B2500',
+                  color: '#ffffff',
+                  display: 'grid',
+                  placeItems: 'center',
+                  fontSize: '11px',
+                  fontWeight: 700,
+                }}
+              >
+                {(currentUser.fullName || currentUser.name || 'H').slice(0, 1).toUpperCase()}
+              </span>
+              <span style={{ maxWidth: '90px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {currentUser.fullName || currentUser.name}
+              </span>
+            </Link>
+          ) : (
+            <Link className="shop-header-account" href="/tai-khoan" aria-label="Tài khoản">
+              <Icon name="user" size={19} />
+            </Link>
+          )}
+
           <Link className="shop-header-cta" href="/dat-ban">
             <span>Đặt bàn ngay</span>
             <Icon name="arrowUpRight" size={17} />
