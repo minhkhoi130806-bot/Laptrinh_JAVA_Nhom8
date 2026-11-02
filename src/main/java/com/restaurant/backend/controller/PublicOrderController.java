@@ -52,7 +52,7 @@ public class PublicOrderController {
         }
         Map<Integer, OrderTotals> totals = orderService.totals(List.of(saved.getId()));
         OrderTotals amount = totals.getOrDefault(saved.getId(), OrderTotals.EMPTY);
-        return new PublicOrderCreatedResponse(saved.getId(), saved.getStatus(), saved.getCreatedAt(), amount.total(), saved.getCustomerName(), saved.getCustomerPhone(), saved.getOrderType(), saved.getPaymentPreference(), items);
+        return new PublicOrderCreatedResponse(saved.getId(), saved.getStatus(), saved.getCreatedAt(), amount.total(), saved.getCustomerName(), saved.getCustomerPhone(), saved.getCustomerEmail(), saved.getOrderType(), saved.getPaymentPreference(), items);
     }
 
     @GetMapping("/{id}")
@@ -66,6 +66,6 @@ public class PublicOrderController {
         List<OrderItemResponse> items = orderItemService.getByOrderId(id).stream().map(orderItemMapper::toResponse).toList();
         Map<Integer, OrderTotals> totals = orderService.totals(List.of(id));
         OrderTotals amount = totals.getOrDefault(id, OrderTotals.EMPTY);
-        return new PublicOrderCreatedResponse(order.getId(), order.getStatus(), order.getCreatedAt(), amount.total(), order.getCustomerName(), order.getCustomerPhone(), order.getOrderType(), order.getPaymentPreference(), items);
+        return new PublicOrderCreatedResponse(order.getId(), order.getStatus(), order.getCreatedAt(), amount.total(), order.getCustomerName(), order.getCustomerPhone(), order.getCustomerEmail(), order.getOrderType(), order.getPaymentPreference(), items);
     }
 }

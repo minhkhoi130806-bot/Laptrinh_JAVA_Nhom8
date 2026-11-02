@@ -30,7 +30,8 @@ public class RateLimitFilter extends OncePerRequestFilter {
         return !(path.startsWith("/api/auth/") || path.equals("/api/reservations/public")
                 || path.startsWith("/api/contact") || path.startsWith("/api/event-inquiries")
                 || path.equals("/api/payments/momo/create") || path.equals("/api/payments/momo/status")
-                || path.equals("/api/payments/vnpay/create") || path.equals("/api/payments/vnpay/status"));
+                || path.equals("/api/payments/vnpay/create") || path.equals("/api/payments/vnpay/status")
+                || path.equals("/api/payments/zalopay/create") || path.equals("/api/payments/zalopay/status"));
     }
 
     @Override

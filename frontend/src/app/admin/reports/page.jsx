@@ -259,6 +259,8 @@ export default function ReportsPage() {
                       : p.paymentMethod === 'BANKING' || p.paymentMethod === 'TRANSFER' ? '🏦 Chuyển khoản ngân hàng'
                       : p.paymentMethod === 'CARD' ? '💳 Thẻ tín dụng / Ghi nợ'
                       : p.paymentMethod === 'MOMO' ? '📱 Ví MoMo'
+                      : p.paymentMethod === 'VNPAY' ? '💳 VNPay'
+                      : p.paymentMethod === 'ZALOPAY' ? '📱 Ví ZaloPay'
                       : p.paymentMethod;
                     const tongTien = Number(revData.totalRevenue || 0);
                     const pct = tongTien > 0 ? (Number(p.revenue) / tongTien) * 100 : 0;

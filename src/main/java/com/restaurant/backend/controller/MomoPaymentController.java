@@ -1,13 +1,9 @@
 package com.restaurant.backend.controller;
 
-import com.restaurant.backend.dto.MomoCreateRequest;
-import com.restaurant.backend.dto.MomoCreateResponse;
-import com.restaurant.backend.dto.MomoStatusResponse;
-import com.restaurant.backend.dto.VnpayCreateRequest;
-import com.restaurant.backend.dto.VnpayCreateResponse;
-import com.restaurant.backend.dto.VnpayStatusResponse;
+import com.restaurant.backend.dto.*;
 import com.restaurant.backend.payment.MomoPaymentService;
 import com.restaurant.backend.payment.VnpayPaymentService;
+import com.restaurant.backend.payment.ZalopayPaymentService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
@@ -16,14 +12,19 @@ import org.springframework.web.bind.annotation.*;
 import java.util.HashMap;
 import java.util.Map;
 
-/** API thanh toán online. Các endpoint này công khai (khách chưa đăng nhập, MoMo/VNPay gọi IPN); bảo vệ bằng xác thực số điện thoại, chữ ký. */
+/** API thanh toán online (MoMo, VNPay, ZaloPay). Các endpoint này công khai (khách chưa đăng nhập, cổng thanh toán gọi callback/IPN); bảo vệ bằng xác thực số điện thoại, chữ ký số. */
 @RestController
 @RequestMapping("/api/payments")
 public class MomoPaymentController {
     private final MomoPaymentService momo;
     private final VnpayPaymentService vnpay;
+    private final ZalopayPaymentService zalopay;
 
-    public MomoPaymentController(MomoPaymentService momo, VnpayPaymentService vnpay) { this.momo = momo; this.vnpay = vnpay; }
+    public MomoPaymentController(MomoPaymentService momo, VnpayPaymentService vnpay, ZalopayPaymentService zalopay) {
+        this.momo = momo;
+        this.vnpay = vnpay;
+        this.zalopay = zalopay;
+    }
 
     /** Giao diện dùng để ẩn/hiện phương thức online theo cấu hình máy chủ. */
     @GetMapping("/methods")
@@ -31,8 +32,10 @@ public class MomoPaymentController {
         Map<String, Object> result = new HashMap<>();
         result.put("momo", momo.isEnabled());
         result.put("vnpay", vnpay.isEnabled());
+        result.put("zalopay", zalopay.isEnabled());
         result.put("missing", momo.missingConfig());
         result.put("vnpayMissing", vnpay.missingConfig());
+        result.put("zalopayMissing", zalopay.missingConfig());
         return result;
     }
 
@@ -94,5 +97,29 @@ public class MomoPaymentController {
     @GetMapping("/vnpay/status")
     public VnpayStatusResponse vnpayStatus(@RequestParam String txnRef) {
         return vnpay.getStatus(txnRef);
+    }
+
+    // ======================== ZALOPAY ========================
+
+    /** Tạo URL thanh toán ZaloPay và trả về cho frontend redirect. */
+    @PostMapping("/zalopay/create")
+    public ZalopayCreateResponse zalopayCreate(@Valid @RequestBody ZalopayCreateRequest request) {
+        return zalopay.createPayment(request.orderId(), request.phone());
+    }
+
+    /**
+     * ZaloPay gọi Callback (server-to-server) qua POST.
+     * Trả về JSON { "return_code": 1, "return_message": "success" } theo đặc tả ZaloPay.
+     */
+    @PostMapping("/zalopay/callback")
+    public ResponseEntity<Map<String, Object>> zalopayCallback(@RequestBody Map<String, Object> body) {
+        Map<String, Object> result = zalopay.handleCallback(body);
+        return ResponseEntity.ok(result);
+    }
+
+    /** Truy vấn trạng thái giao dịch ZaloPay (cho trang kết quả và client polling). */
+    @GetMapping("/zalopay/status")
+    public ZalopayStatusResponse zalopayStatus(@RequestParam String appTransId) {
+        return zalopay.getStatus(appTransId);
     }
 }

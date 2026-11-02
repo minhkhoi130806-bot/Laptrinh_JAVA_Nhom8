@@ -15,7 +15,7 @@
 	<name>restaurant-backend</name>
 	<description>Restaurant management backend</description>
 	<properties>
-		<java.version>21</java.version>
+		<java.version>17</java.version>
 		<lombok.version>1.18.48</lombok.version>
 		<jjwt.version>0.12.6</jjwt.version>
 	</properties>
@@ -54,10 +54,14 @@
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-webmvc</artifactId>
 		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-mail</artifactId>
+		</dependency>
 
 
 
-		<!-- Database migrations; migration V2 chỉ bổ sung bảng, không xóa dữ liệu cũ. -->
+		<!-- Database migrations; migration V2 chá»‰ bá»• sung báº£ng, khÃ´ng xÃ³a dá»¯ liá»‡u cÅ©. -->
 		<dependency>
 			<groupId>org.flywaydb</groupId>
 			<artifactId>flyway-core</artifactId>
@@ -69,13 +73,13 @@
 			<version>11.14.1</version>
 		</dependency>
 
-		<!-- OpenAPI / Swagger UI để demo API với JWT -->
+		<!-- OpenAPI / Swagger UI Ä‘á»ƒ demo API vá»›i JWT -->
 		<dependency>
 			<groupId>org.springdoc</groupId>
 			<artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
 			<version>3.0.1</version>
 		</dependency>
-		<!-- Health endpoint cho chạy local và Docker -->
+		<!-- Health endpoint cho cháº¡y local vÃ  Docker -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-actuator</artifactId>

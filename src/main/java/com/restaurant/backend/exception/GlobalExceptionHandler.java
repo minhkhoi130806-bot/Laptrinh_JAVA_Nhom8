@@ -1,4 +1,4 @@
-﻿package com.restaurant.backend.exception;
+package com.restaurant.backend.exception;
 
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.dao.DataAccessException;
@@ -76,9 +76,11 @@ public class GlobalExceptionHandler {private static final org.slf4j.Logger log =
     @ExceptionHandler(DataAccessException.class)
     public ResponseEntity<ApiError> handleDataAccess(
             DataAccessException ex, HttpServletRequest request) {
+        log.error("Lỗi CSDL khi gọi {}: {}", request.getRequestURI(), ex.getMessage(), ex);
+        String cause = ex.getMostSpecificCause() != null ? ex.getMostSpecificCause().getMessage() : ex.getMessage();
         return buildResponse(
                 HttpStatus.INTERNAL_SERVER_ERROR,
-                "Không thể truy cập dữ liệu",
+                "Không thể truy cập dữ liệu: " + cause,
                 request
         );
     }

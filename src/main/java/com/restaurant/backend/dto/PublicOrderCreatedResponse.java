@@ -6,6 +6,6 @@ import java.util.List;
 
 public record PublicOrderCreatedResponse(
         Integer id, String status, LocalDateTime createdAt, BigDecimal total,
-        String customerName, String customerPhone, String orderType,
+        String customerName, String customerPhone, String customerEmail, String orderType,
         String paymentPreference, List<OrderItemResponse> items
 ) { }

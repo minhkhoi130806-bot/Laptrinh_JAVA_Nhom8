@@ -52,6 +52,7 @@ public class InvoiceServiceImpl implements InvoiceService {
     private final RecipeRepository recipeRepository;
     private final IngredientRepository ingredientRepository;
     private final CustomerRepository customerRepository;
+    private final com.restaurant.backend.service.EmailService emailService;
 
     // Tiêm đầy đủ các Repository vào Service qua Constructor
     public InvoiceServiceImpl(
@@ -61,7 +62,8 @@ public class InvoiceServiceImpl implements InvoiceService {
             DiningTableRepository diningTableRepository,
             RecipeRepository recipeRepository,
             IngredientRepository ingredientRepository,
-            CustomerRepository customerRepository) {
+            CustomerRepository customerRepository,
+            com.restaurant.backend.service.EmailService emailService) {
         this.invoiceRepository = invoiceRepository;
         this.orderRepository = orderRepository;
         this.orderItemRepository = orderItemRepository;
@@ -69,6 +71,7 @@ public class InvoiceServiceImpl implements InvoiceService {
         this.recipeRepository = recipeRepository;
         this.ingredientRepository = ingredientRepository;
         this.customerRepository = customerRepository;
+        this.emailService = emailService;
     }
 
     /**
@@ -227,7 +230,14 @@ public class InvoiceServiceImpl implements InvoiceService {
             }
         }
 
-        // Bước 13: Trả về hóa đơn vừa thanh toán thành công
+        // Bước 13: Gửi email xác nhận thanh toán thành công (chạy bất đồng bộ, không chặn giao dịch)
+        try {
+            emailService.sendPaymentSuccessEmail(donHang, hoaDonDaLuu, danhSachMonAn);
+        } catch (Exception e) {
+            org.slf4j.LoggerFactory.getLogger(InvoiceServiceImpl.class).warn("Lỗi kích hoạt gửi email thanh toán: {}", e.getMessage());
+        }
+
+        // Bước 14: Trả về hóa đơn vừa thanh toán thành công
         return hoaDonDaLuu;
     }
 

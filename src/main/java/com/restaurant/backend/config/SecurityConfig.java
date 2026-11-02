@@ -136,6 +136,9 @@ public class SecurityConfig {
                 // Thanh toán VNPay: khách tạo giao dịch, VNPay gọi IPN/return (xác thực bằng chữ ký HMAC-SHA512).
                 .requestMatchers(HttpMethod.POST, "/api/payments/vnpay/create").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/payments/vnpay/ipn", "/api/payments/vnpay/return", "/api/payments/vnpay/status").permitAll()
+                // Thanh toán ZaloPay: khách tạo giao dịch, ZaloPay gọi callback (xác thực bằng chữ ký HMAC-SHA256).
+                .requestMatchers(HttpMethod.POST, "/api/payments/zalopay/create", "/api/payments/zalopay/callback").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/payments/zalopay/status").permitAll()
                 .requestMatchers("/uploads/**").permitAll()
 
                 // Cho phép mọi người xem danh sách món ăn và danh mục thực đơn (GET)
