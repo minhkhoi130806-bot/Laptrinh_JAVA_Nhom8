@@ -283,12 +283,7 @@ public class MenuItemServiceImpl implements MenuItemService {
                 menuItemRepository.save(item);
                 updatedCount++;
             }
-            // Nếu đủ nguyên liệu mà món đang tắt bán -> tự động mở lại
-            else if (enough && Boolean.FALSE.equals(item.getAvailable())) {
-                item.setAvailable(true);
-                menuItemRepository.save(item);
-                updatedCount++;
-            }
+            // Mở bán lại là quyết định của quản lý; giữ nguyên mọi món đã tắt thủ công.
         }
         return updatedCount;
     }

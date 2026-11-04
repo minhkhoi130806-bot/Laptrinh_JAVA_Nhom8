@@ -1,7 +1,7 @@
 'use client';
 import { useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { api, toInputDateTime, vnd } from '@/lib/api';
+import { api, vnd } from '@/lib/api';
 import { useLookups } from '@/lib/hooks';
 import { LK } from '@/lib/admin/resources';
 import PageHeader from './PageHeader';
@@ -38,31 +38,22 @@ export default function OrderCreate() {
     if (!info.tableId) return setErr('Vui lòng chọn bàn');
     if (cart.length === 0) return setErr('Giỏ món đang trống');
     setSaving(true); setErr('');
-    let order;
     try {
-      order = await api('/orders', {
+      const order = await api('/orders/with-items', {
         method: 'POST',
         body: {
           customerId: info.customerId ? Number(info.customerId) : null,
           tableId: Number(info.tableId),
           employeeId: info.employeeId ? Number(info.employeeId) : null,
-          createdAt: toInputDateTime(), status: 'OPEN',
+          items: cart.map((line) => ({ menuItemId: line.id, quantity: line.qty, note: line.note || null })),
         },
       });
-    } catch (e) { setSaving(false); return setErr(e.message); }
-
-    // Thêm lần lượt từng món vào đơn vừa tạo
-    const failed = [];
-    for (const l of cart) {
-      try {
-        await api('/order-items', { method: 'POST', body: { orderId: order.id, menuItemId: l.id, quantity: l.qty, unitPrice: l.price, note: l.note || null } });
-      } catch { failed.push(l.name); }
+      toast(`Đã tạo đơn #${order.id}`);
+      router.push(`/admin/orders/${order.id}`);
+    } catch (e) {
+      setErr(e.message);
+      setSaving(false);
     }
-    // Bàn có khách -> đang dùng (không bắt buộc, lỗi cũng bỏ qua)
-    try { await api(`/tables/${info.tableId}/status?value=OCCUPIED`, { method: 'PATCH' }); } catch {}
-
-    toast(failed.length ? `Đã tạo đơn #${order.id} nhưng lỗi thêm: ${failed.join(', ')}` : `Đã tạo đơn #${order.id}`, failed.length ? 'err' : 'ok');
-    router.push(`/admin/orders/${order.id}`);
   };
 
   return (

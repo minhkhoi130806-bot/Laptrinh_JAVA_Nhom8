@@ -139,6 +139,8 @@ public class SecurityConfig {
                 // Cho phép mọi người xem danh sách món ăn và danh mục thực đơn (GET)
                 .requestMatchers(HttpMethod.GET, "/api/menu-items/**", "/api/categories/**").permitAll()
 
+                // Các biểu mẫu nhân viên chỉ cần tên, không được đọc lương hay hồ sơ quản trị.
+                .requestMatchers(HttpMethod.GET, "/api/employees/lookup").hasAnyRole("MANAGER", "CASHIER", "WAITER", "CHEF")
                 // API Quản lý nhân viên: Chỉ có Quản lý (MANAGER) mới được thực hiện
                 .requestMatchers("/api/employees/**").hasRole("MANAGER")
 

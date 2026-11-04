@@ -2,16 +2,19 @@
 import Link from 'next/link';
 import { dt, num, vnd } from '@/lib/api';
 import { useApi } from '@/lib/hooks';
+import { canTakePayment, useStaffRole } from '@/lib/admin/access';
 import Badge from './Badge';
 import PageHeader from './PageHeader';
 import StateBox from './StateBox';
 import Icon from '@/components/ui/Icon';
 
 export default function Dashboard() {
+  const role = useStaffRole();
+  const canViewRevenue = canTakePayment(role);
   const tables = useApi('/tables');
   const reservations = useApi('/reservations');
   const orders = useApi('/orders');
-  const invoices = useApi('/invoices');
+  const invoices = useApi(canViewRevenue ? '/invoices' : null);
   const customers = useApi('/customers');
   const menu = useApi('/menu-items');
   const ingredients = useApi('/ingredients');
@@ -21,17 +24,21 @@ export default function Dashboard() {
 
   const body = !error && !loading && (() => {
     const T = tables.data, count = (s) => T.filter((t) => t.status === s).length;
-    const revenue = invoices.data.reduce((s, i) => s + Number(i.total || 0), 0);
+    const today = new Date().toDateString();
+    const revenue = (invoices.data || []).filter((i) => new Date(i.paidAt).toDateString() === today)
+      .reduce((s, i) => s + Number(i.total || 0), 0);
+    const todayOrders = orders.data.filter((o) => new Date(o.createdAt).toDateString() === today);
     const openOrders = orders.data.filter((o) => ['OPEN', 'SERVING'].includes(o.status));
     const low = ingredients.data.filter((i) => i.lowStock);
-    const upcoming = reservations.data.filter((r) => ['PENDING', 'CONFIRMED'].includes(r.status))
+    const upcoming = reservations.data.filter((r) => ['PENDING', 'CONFIRMED'].includes(r.status) && new Date(r.reservedAt) >= new Date())
       .sort((a, b) => a.reservedAt.localeCompare(b.reservedAt)).slice(0, 6);
     const recent = [...orders.data].sort((a, b) => b.id - a.id).slice(0, 6);
     const cname = (id) => customers.data.find((c) => c.id === id)?.fullName ?? `Khách #${id}`;
     const tcode = (id) => T.find((t) => t.id === id)?.tableCode ?? id;
     const stats = [
-      ['Doanh thu', vnd(revenue), '/admin/invoices'], ['Đơn đang mở', openOrders.length, '/admin/orders'],
-      ['Tổng đơn hàng', orders.data.length, '/admin/orders'], ['Khách hàng', customers.data.length, '/admin/customers'],
+      canViewRevenue ? ['Doanh thu hôm nay', vnd(revenue), '/admin/invoices'] : ['Đặt bàn sắp tới', upcoming.length, '/admin/calendar'],
+      ['Đơn đang mở', openOrders.length, '/admin/orders'],
+      ['Đơn tạo hôm nay', todayOrders.length, '/admin/orders'], ['Khách hàng đã lưu', customers.data.length, '/admin/customers'],
       ['Món đang bán', menu.data.filter((m) => m.available).length, '/admin/menu'], ['Nguyên liệu sắp hết', low.length, '/admin/ingredients'],
     ];
     return (

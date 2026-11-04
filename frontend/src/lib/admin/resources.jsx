@@ -14,7 +14,7 @@ import { ORDER_STATUSES, RESERVATION_STATUSES, ROLES, SPICE_LEVELS, TABLE_STATUS
 export const LK = {
   customers: { endpoint: '/customers?scope=ALL', label: (c) => (c.phone ? `${c.fullName} – ${c.phone}` : c.fullName) },
   tables: { endpoint: '/tables?scope=ALL', label: (t) => `${t.tableCode} (${t.capacity} chỗ)` },
-  employees: { endpoint: '/employees?scope=ALL', label: (e) => e.fullName },
+  employees: { endpoint: '/employees/lookup', label: (e) => e.fullName },
   categories: { endpoint: '/categories', label: (c) => c.name },
   menu: { endpoint: '/menu-items?scope=ALL', label: (m) => m.nameVi },
   ingredients: { endpoint: '/ingredients', label: (i) => `${i.name} (${i.unit})` },

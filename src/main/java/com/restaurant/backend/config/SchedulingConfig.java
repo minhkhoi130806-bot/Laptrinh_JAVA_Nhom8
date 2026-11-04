@@ -2,12 +2,14 @@ package com.restaurant.backend.config;
 
 import com.restaurant.backend.service.ReservationService;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.annotation.Scheduled;
 
 // Mỗi phút kiểm tra: lượt đặt đã xác nhận sắp đến giờ thì bàn tự chuyển sang "Đã đặt"
 @Configuration
 @EnableScheduling
+@ConditionalOnProperty(name = "app.scheduling.enabled", havingValue = "true", matchIfMissing = true)
 public class SchedulingConfig {
 
     private final ReservationService reservationService;

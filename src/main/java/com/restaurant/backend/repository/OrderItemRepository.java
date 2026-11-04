@@ -3,8 +3,10 @@ package com.restaurant.backend.repository;
 import com.restaurant.backend.entity.OrderItem;
 import com.restaurant.backend.entity.OrderItemId;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import jakarta.persistence.LockModeType;
 
 import java.util.Collection;
 import java.util.List;
@@ -29,6 +31,10 @@ public interface OrderItemRepository extends JpaRepository<OrderItem, OrderItemI
      */
     List<OrderItem> findByIdOrderId(Integer orderId);
 
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select oi from OrderItem oi where oi.id.orderId = :orderId order by oi.id.menuItemId")
+    List<OrderItem> findByOrderIdForUpdate(@Param("orderId") Integer orderId);
+
     /**
      * Xóa toàn bộ các món của một đơn hàng (dùng khi hủy hoặc xóa đơn hàng)
      */
@@ -43,8 +49,9 @@ public interface OrderItemRepository extends JpaRepository<OrderItem, OrderItemI
             + "from OrderItem oi where oi.id.orderId in :orderIds group by oi.id.orderId")
     List<Object[]> aggregateByOrderIds(@Param("orderIds") Collection<Integer> orderIds);
 
-    // Thống kê món bán chạy: [menuItemId, sum(quantity), sum(quantity * unitPrice)]
+    // Chỉ tính đơn đã thanh toán; giá trị món trước giảm giá hóa đơn.
     @Query("select oi.id.menuItemId, sum(oi.quantity), sum(oi.quantity * oi.unitPrice) "
-            + "from OrderItem oi group by oi.id.menuItemId order by sum(oi.quantity) desc")
+            + "from OrderItem oi where oi.id.orderId in (select o.id from Order o where o.status = 'PAID') "
+            + "group by oi.id.menuItemId order by sum(oi.quantity) desc")
     List<Object[]> findBestSellingMenuItems();
 }

@@ -8,370 +8,247 @@ import com.restaurant.backend.entity.*;
 import com.restaurant.backend.exception.BadRequestException;
 import com.restaurant.backend.exception.NotFoundException;
 import com.restaurant.backend.repository.CustomerRepository;
-import com.restaurant.backend.repository.DiningTableRepository;
 import com.restaurant.backend.repository.IngredientRepository;
 import com.restaurant.backend.repository.InvoiceRepository;
 import com.restaurant.backend.repository.OrderItemRepository;
 import com.restaurant.backend.repository.OrderRepository;
 import com.restaurant.backend.repository.RecipeRepository;
+import com.restaurant.backend.service.EmailService;
 import com.restaurant.backend.service.InvoiceService;
+import com.restaurant.backend.service.TableStateService;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.LockModeType;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.*;
 
-/**
- * =========================================================================
- * LỚP THỰC THI NGHIỆP VỤ HÓA ĐƠN & THANH TOÁN (InvoiceServiceImpl)
- * Người phụ trách: Ngô Minh Khôi (Tuần 3 & Tuần 4 - Nghiệp vụ Thanh toán, Trừ kho & Báo cáo)
- * 
- * Mục đích và yêu cầu cốt lõi theo kế hoạch 5 tuần:
- * 1. API thanh toán tạo INVOICE (@Transactional):
- *    - Tính tổng tiền món ăn (subtotal), giảm giá (discount) và tổng thanh toán (total).
- *    - Tạo hóa đơn lưu phương thức thanh toán, thời gian thanh toán.
- *    - Cập nhật trạng thái đơn hàng thành "PAID".
- *    - Giải phóng bàn ăn (chuyển trạng thái bàn về AVAILABLE).
- *    - YÊU CẦU TUẦN 4 (Khôi): Tự động trừ kho nguyên liệu theo RECIPE trong cùng một giao dịch (@Transactional).
- *    - YÊU CẦU TUẦN 4 (Khôi - Phúc): Tự động cộng điểm tích lũy (loyalty_points) cho khách hàng.
- * 2. YÊU CẦU TUẦN 4 (Khôi): API báo cáo thống kê doanh thu theo ngày/tháng và theo phương thức thanh toán.
- * =========================================================================
- */
 @Service
-@Transactional
+@Transactional(isolation = Isolation.READ_COMMITTED)
 public class InvoiceServiceImpl implements InvoiceService {
+    private static final Set<String> PAYMENT_METHODS = Set.of("CASH", "CARD", "TRANSFER", "BANKING", "MOMO", "VNPAY", "ZALOPAY");
 
     private final InvoiceRepository invoiceRepository;
     private final OrderRepository orderRepository;
     private final OrderItemRepository orderItemRepository;
-    private final DiningTableRepository diningTableRepository;
+    private final TableStateService tableStateService;
     private final RecipeRepository recipeRepository;
     private final IngredientRepository ingredientRepository;
     private final CustomerRepository customerRepository;
-    private final com.restaurant.backend.service.EmailService emailService;
+    private final EmailService emailService;
+    private final EntityManager entityManager;
 
-    // Tiêm đầy đủ các Repository vào Service qua Constructor
-    public InvoiceServiceImpl(
-            InvoiceRepository invoiceRepository,
-            OrderRepository orderRepository,
-            OrderItemRepository orderItemRepository,
-            DiningTableRepository diningTableRepository,
-            RecipeRepository recipeRepository,
-            IngredientRepository ingredientRepository,
-            CustomerRepository customerRepository,
-            com.restaurant.backend.service.EmailService emailService) {
+    public InvoiceServiceImpl(InvoiceRepository invoiceRepository,
+                              OrderRepository orderRepository,
+                              OrderItemRepository orderItemRepository,
+                              TableStateService tableStateService,
+                              RecipeRepository recipeRepository,
+                              IngredientRepository ingredientRepository,
+                              CustomerRepository customerRepository,
+                              EmailService emailService,
+                              EntityManager entityManager) {
         this.invoiceRepository = invoiceRepository;
         this.orderRepository = orderRepository;
         this.orderItemRepository = orderItemRepository;
-        this.diningTableRepository = diningTableRepository;
+        this.tableStateService = tableStateService;
         this.recipeRepository = recipeRepository;
         this.ingredientRepository = ingredientRepository;
         this.customerRepository = customerRepository;
         this.emailService = emailService;
+        this.entityManager = entityManager;
     }
 
-    /**
-     * BƯỚC QUAN TRỌNG: THANH TOÁN ĐƠN HÀNG VÀ TẠO HÓA ĐƠN (@Transactional)
-     * Toàn bộ các thao tác: tạo Invoice, đổi status Order, đổi status Table,
-     * trừ kho theo Recipe và tích điểm khách hàng đều diễn ra trong cùng 1 transaction.
-     */
     @Override
-    @Transactional
     public Invoice checkout(CheckoutRequest request) {
-        // Bước 1: Kiểm tra mã đơn hàng gửi lên có hợp lệ không
-        if (request.orderId() == null) {
+        if (request == null || request.orderId() == null) {
             throw new BadRequestException("Vui lòng cung cấp mã đơn hàng cần thanh toán");
         }
 
-        Integer maDonHang = request.orderId();
-
-        // Bước 2: Tìm đơn hàng trong cơ sở dữ liệu
-        Order donHang = orderRepository.findById(maDonHang)
-                .orElseThrow(() -> new NotFoundException("Không tìm thấy đơn hàng có mã ID: " + maDonHang));
-
-        // Bước 3: Kiểm tra xem đơn hàng đã từng thanh toán trước đó chưa
-        if ("PAID".equalsIgnoreCase(donHang.getStatus())) {
-            throw new BadRequestException("Đơn hàng này đã được thanh toán rồi, không thể thanh toán lại!");
+        // Serialize checkout and item changes for this order, including gateway callbacks.
+        Order order = orderRepository.findByIdForUpdate(request.orderId())
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy đơn hàng có mã ID: " + request.orderId()));
+        entityManager.refresh(order, LockModeType.PESSIMISTIC_WRITE);
+        if ("PAID".equalsIgnoreCase(order.getStatus()) || invoiceRepository.existsByOrderId(order.getId())) {
+            throw new BadRequestException("Đơn hàng này đã có hóa đơn, không thể thanh toán lại");
+        }
+        if (!"OPEN".equalsIgnoreCase(order.getStatus()) && !"SERVING".equalsIgnoreCase(order.getStatus())) {
+            throw new BadRequestException("Chỉ thanh toán được đơn đang mở hoặc đang phục vụ");
         }
 
-        // Bước 4: Lấy danh sách tất cả các món ăn mà khách đã gọi trong đơn hàng này
-        List<OrderItem> danhSachMonAn = orderItemRepository.findByIdOrderId(maDonHang);
-
-        if (danhSachMonAn == null || danhSachMonAn.isEmpty()) {
-            throw new BadRequestException("Đơn hàng này chưa có món ăn nào, không thể thực hiện thanh toán!");
+        List<OrderItem> items = orderItemRepository.findByOrderIdForUpdate(order.getId());
+        if (items == null || items.isEmpty()) {
+            throw new BadRequestException("Đơn hàng này chưa có món ăn nào, không thể thực hiện thanh toán");
         }
+        items.forEach(item -> entityManager.refresh(item, LockModeType.PESSIMISTIC_WRITE));
 
-        // Bước 5: Tính tổng số tiền các món ăn (subtotal)
-        BigDecimal tongTienMon = BigDecimal.ZERO;
-
-        for (OrderItem mon : danhSachMonAn) {
-            int soLuong = (mon.getQuantity() != null) ? mon.getQuantity() : 0;
-            BigDecimal donGia = (mon.getUnitPrice() != null) ? mon.getUnitPrice() : BigDecimal.ZERO;
-
-            // Tiền của món này = số lượng * đơn giá
-            BigDecimal tienMonNay = donGia.multiply(BigDecimal.valueOf(soLuong));
-
-            // Cộng dồn vào tổng tiền
-            tongTienMon = tongTienMon.add(tienMonNay);
-        }
-
-        // Bước 6: Xử lý số tiền giảm giá (discount) nếu có
-        BigDecimal giamGia = BigDecimal.ZERO;
-        if (request.discount() != null && request.discount().compareTo(BigDecimal.ZERO) > 0) {
-            giamGia = request.discount();
-        }
-
-        // Bước 7: Tính tổng tiền khách phải trả thực tế (total = subtotal - discount)
-        BigDecimal tongThanhToan = tongTienMon.subtract(giamGia);
-
-        // Đảm bảo số tiền thanh toán không bao giờ bị âm
-        if (tongThanhToan.compareTo(BigDecimal.ZERO) < 0) {
-            tongThanhToan = BigDecimal.ZERO;
-        }
-
-        // Bước 8: Tạo đối tượng Hóa đơn mới (Invoice) và gán các thông tin
-        Invoice hoaDon = new Invoice();
-        hoaDon.setId(null); // Để CSDL tự tăng ID
-        hoaDon.setOrderId(maDonHang);
-        hoaDon.setSubtotal(tongTienMon);
-        hoaDon.setDiscount(giamGia);
-        hoaDon.setTotal(tongThanhToan);
-
-        // Phương thức thanh toán (mặc định là "CASH" - Tiền mặt nếu không truyền)
-        String phuongThuc = (request.paymentMethod() != null && !request.paymentMethod().trim().isEmpty())
-                ? request.paymentMethod().trim().toUpperCase()
-                : "CASH";
-        hoaDon.setPaymentMethod(phuongThuc);
-
-        // Thời gian thanh toán là thời điểm hiện tại
-        hoaDon.setPaidAt(LocalDateTime.now());
-
-        // Lưu hóa đơn vào CSDL
-        Invoice hoaDonDaLuu = invoiceRepository.save(hoaDon);
-
-        // Bước 9: CẬP NHẬT TRẠNG THÁI ĐƠN HÀNG THÀNH "PAID" (Đã thanh toán)
-        donHang.setStatus("PAID");
-        orderRepository.save(donHang);
-
-        // Bước 10: TỰ ĐỘNG GIẢI PHÓNG BÀN ĂN (Nếu đơn hàng có gắn với 1 bàn)
-        if (donHang.getTableId() != null) {
-            Long maBan = Long.valueOf(donHang.getTableId());
-            Optional<DiningTable> banAnOpt = diningTableRepository.findById(maBan);
-
-            if (banAnOpt.isPresent()) {
-                DiningTable banAn = banAnOpt.get();
-                // Đổi trạng thái bàn thành AVAILABLE (Bàn trống, sẵn sàng nhận khách mới)
-                banAn.setStatus(TableStatus.AVAILABLE);
-                diningTableRepository.save(banAn);
+        BigDecimal subtotal = BigDecimal.ZERO;
+        // Aggregate shared ingredients across every dish before checking or changing stock.
+        Map<Long, BigDecimal> requirements = new TreeMap<>();
+        for (OrderItem item : items) {
+            if (item.getId() == null || item.getId().getMenuItemId() == null
+                    || item.getQuantity() == null || item.getQuantity() <= 0
+                    || item.getUnitPrice() == null || item.getUnitPrice().signum() < 0) {
+                throw new BadRequestException("Đơn hàng có món hoặc số lượng/đơn giá không hợp lệ");
             }
-        }
-
-        // =========================================================================
-        // Bước 11 (KẾ HOẠCH TUẦN 4 - KHÔI): TRỪ KHO NGUYÊN LIỆU THEO RECIPE KHI THANH TOÁN
-        // Cùng nằm trong transaction: Đảm bảo nguyên liệu được trừ chính xác vào kho
-        // =========================================================================
-        for (OrderItem mon : danhSachMonAn) {
-            if (mon.getId() != null && mon.getId().getMenuItemId() != null) {
-                Long maMon = Long.valueOf(mon.getId().getMenuItemId());
-                int soLuongMon = (mon.getQuantity() != null) ? mon.getQuantity() : 0;
-
-                if (soLuongMon > 0) {
-                    // Lấy toàn bộ công thức cấu thành nên món ăn này
-                    List<Recipe> congThucCuaMon = recipeRepository.findByMenuItem(maMon);
-
-                    if (congThucCuaMon != null && !congThucCuaMon.isEmpty()) {
-                        for (Recipe r : congThucCuaMon) {
-                            Ingredient nguyenLieu = r.getIngredient();
-                            if (nguyenLieu != null) {
-                                // Lượng cần trừ = định lượng 1 món * số lượng món khách gọi
-                                BigDecimal dinhLuong = (r.getQuantityNeeded() != null) ? r.getQuantityNeeded() : BigDecimal.ZERO;
-                                BigDecimal luongCanTru = dinhLuong.multiply(BigDecimal.valueOf(soLuongMon));
-
-                                // Tồn kho hiện tại
-                                BigDecimal tonHienTai = (nguyenLieu.getStockQty() != null) ? nguyenLieu.getStockQty() : BigDecimal.ZERO;
-                                BigDecimal tonMoi = tonHienTai.subtract(luongCanTru);
-
-                                // Tránh để tồn kho bị âm
-                                if (tonMoi.compareTo(BigDecimal.ZERO) < 0) {
-                                    tonMoi = BigDecimal.ZERO;
-                                }
-
-                                nguyenLieu.setStockQty(tonMoi);
-                                ingredientRepository.save(nguyenLieu);
-                            }
-                        }
-                    }
+            subtotal = subtotal.add(item.getUnitPrice().multiply(BigDecimal.valueOf(item.getQuantity())));
+            List<Recipe> recipe = recipeRepository.findByMenuItem(item.getId().getMenuItemId().longValue());
+            for (Recipe line : recipe) {
+                if (line.getIngredient() == null || line.getIngredient().getId() == null
+                        || line.getQuantityNeeded() == null || line.getQuantityNeeded().signum() <= 0) {
+                    throw new BadRequestException("Công thức món ăn có nguyên liệu hoặc định lượng không hợp lệ");
                 }
+                BigDecimal needed = line.getQuantityNeeded().multiply(BigDecimal.valueOf(item.getQuantity()));
+                requirements.merge(line.getIngredient().getId(), needed, BigDecimal::add);
             }
         }
 
-        // =========================================================================
-        // Bước 12 (KẾ HOẠCH TUẦN 4 - KHÔI): TÍCH ĐIỂM THƯỞNG CHO KHÁCH HÀNG (Loyalty points)
-        // Mỗi 10.000 VNĐ thanh toán được cộng 1 điểm tích lũy
-        // =========================================================================
-        if (donHang.getCustomerId() != null) {
-            Long maKhachHang = Long.valueOf(donHang.getCustomerId());
-            Optional<Customer> khachHangOpt = customerRepository.findById(maKhachHang);
+        BigDecimal discount = request.discount() == null ? BigDecimal.ZERO : request.discount();
+        if (discount.signum() < 0 || discount.compareTo(subtotal) > 0) {
+            throw new BadRequestException("Tiền giảm giá phải từ 0 đến tổng tiền món ăn");
+        }
+        String method = request.paymentMethod() == null || request.paymentMethod().isBlank()
+                ? "CASH" : request.paymentMethod().trim().toUpperCase(Locale.ROOT);
+        if (!PAYMENT_METHODS.contains(method)) {
+            throw new BadRequestException("Phương thức thanh toán không hợp lệ");
+        }
 
-            if (khachHangOpt.isPresent()) {
-                Customer khachHang = khachHangOpt.get();
-                // Tính điểm cộng: 1 điểm cho mỗi 10.000 VNĐ thanh toán thực tế
-                int diemCong = tongThanhToan.divide(BigDecimal.valueOf(10000), 0, RoundingMode.FLOOR).intValue();
-
-                if (diemCong > 0) {
-                    int diemHienTai = (khachHang.getLoyaltyPoints() != null) ? khachHang.getLoyaltyPoints() : 0;
-                    khachHang.setLoyaltyPoints(diemHienTai + diemCong);
-                    customerRepository.save(khachHang);
-                }
+        Map<Long, Ingredient> lockedIngredients = new LinkedHashMap<>();
+        for (Map.Entry<Long, BigDecimal> entry : requirements.entrySet()) {
+            Ingredient ingredient = ingredientRepository.findByIdForUpdate(entry.getKey())
+                    .orElseThrow(() -> new BadRequestException("Không tìm thấy nguyên liệu trong công thức: " + entry.getKey()));
+            // Recipe loading may already have cached this entity before waiting for its lock.
+            entityManager.refresh(ingredient, LockModeType.PESSIMISTIC_WRITE);
+            BigDecimal available = ingredient.getStockQty() == null ? BigDecimal.ZERO : ingredient.getStockQty();
+            if (available.compareTo(entry.getValue()) < 0) {
+                throw new BadRequestException("Không đủ nguyên liệu " + ingredient.getName()
+                        + ": cần " + entry.getValue().stripTrailingZeros().toPlainString()
+                        + ", còn " + available.stripTrailingZeros().toPlainString() + " " + ingredient.getUnit());
             }
+            lockedIngredients.put(entry.getKey(), ingredient);
         }
 
-        // Bước 13: Gửi email xác nhận thanh toán thành công (chạy bất đồng bộ, không chặn giao dịch)
-        try {
-            emailService.sendPaymentSuccessEmail(donHang, hoaDonDaLuu, danhSachMonAn);
-        } catch (Exception e) {
-            org.slf4j.LoggerFactory.getLogger(InvoiceServiceImpl.class).warn("Lỗi kích hoạt gửi email thanh toán: {}", e.getMessage());
+        Customer customer = null;
+        BigDecimal total = subtotal.subtract(discount);
+        int earnedPoints = total.divide(BigDecimal.valueOf(10000), 0, RoundingMode.FLOOR).intValueExact();
+        if (order.getCustomerId() != null && earnedPoints > 0) {
+            customer = customerRepository.findByIdForUpdate(order.getCustomerId().longValue())
+                    .orElseThrow(() -> new BadRequestException("Không tìm thấy khách hàng của đơn hàng"));
+            entityManager.refresh(customer, LockModeType.PESSIMISTIC_WRITE);
         }
 
-        // Bước 14: Trả về hóa đơn vừa thanh toán thành công
-        return hoaDonDaLuu;
+        // All validation completes before any invoice, stock, order or points changes.
+        Invoice invoice = new Invoice();
+        invoice.setOrderId(order.getId());
+        invoice.setSubtotal(subtotal);
+        invoice.setDiscount(discount);
+        invoice.setTotal(total);
+        invoice.setPaymentMethod(method);
+        invoice.setPaidAt(LocalDateTime.now());
+        Invoice saved = invoiceRepository.save(invoice);
+
+        for (Map.Entry<Long, Ingredient> entry : lockedIngredients.entrySet()) {
+            Ingredient ingredient = entry.getValue();
+            ingredient.setStockQty(ingredient.getStockQty().subtract(requirements.get(entry.getKey())));
+            ingredientRepository.save(ingredient);
+        }
+        if (customer != null) {
+            int currentPoints = customer.getLoyaltyPoints() == null ? 0 : customer.getLoyaltyPoints();
+            customer.setLoyaltyPoints(Math.addExact(currentPoints, earnedPoints));
+            customerRepository.save(customer);
+        }
+        order.setStatus("PAID");
+        orderRepository.save(order);
+        tableStateService.refresh(order.getTableId());
+
+        Runnable sendEmail = () -> {
+            try {
+                emailService.sendPaymentSuccessEmail(order, saved, items);
+            } catch (Exception exception) {
+                org.slf4j.LoggerFactory.getLogger(InvoiceServiceImpl.class)
+                        .warn("Lỗi kích hoạt gửi email thanh toán: {}", exception.getMessage());
+            }
+        };
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() { sendEmail.run(); }
+            });
+        } else {
+            sendEmail.run();
+        }
+        return saved;
     }
 
-    /**
-     * BƯỚC 14 (KẾ HOẠCH TUẦN 4 - KHÔI): BÁO CÁO DOANH THU THEO NGÀY/THÁNG
-     * Thống kê toàn diện doanh thu từ các hóa đơn đã thanh toán.
-     */
     @Override
     @Transactional(readOnly = true)
     public RevenueReportResponse getRevenueReport(Integer days) {
-        // Mặc định xem 30 ngày gần nhất nếu không chỉ định
-        int soNgay = (days != null && days > 0) ? days : 30;
-        LocalDateTime tuNgay = LocalDate.now().minusDays(soNgay - 1).atStartOfDay();
-
-        List<Invoice> tatCaHoaDon = invoiceRepository.findAll();
-
-        BigDecimal tongDoanhThu = BigDecimal.ZERO;
-        long tongSoHoaDon = 0;
-        BigDecimal doanhThuHomNay = BigDecimal.ZERO;
-
-        LocalDate homNay = LocalDate.now();
-        DateTimeFormatter dtf = DateTimeFormatter.ofPattern("yyyy-MM-dd");
-
-        // Map gom nhóm theo ngày: Ngày -> [DoanhThu, SoHoaDon]
-        Map<String, BigDecimal> doanhThuTheoNgay = new TreeMap<>();
-        Map<String, Long> soHoaDonTheoNgay = new HashMap<>();
-
-        // Khởi tạo trước các ngày trong khoảng để biểu đồ không bị khuyết ngày
-        for (int i = 0; i < soNgay; i++) {
-            String ngayKey = LocalDate.now().minusDays(soNgay - 1 - i).format(dtf);
-            doanhThuTheoNgay.put(ngayKey, BigDecimal.ZERO);
-            soHoaDonTheoNgay.put(ngayKey, 0L);
+        int dayCount = days == null ? 30 : days;
+        if (dayCount < 1 || dayCount > 366) {
+            throw new BadRequestException("Số ngày báo cáo phải từ 1 đến 366");
         }
-
-        // Map gom nhóm theo phương thức thanh toán
-        Map<String, BigDecimal> doanhThuTheoPhuongThuc = new LinkedHashMap<>();
-        Map<String, Long> soHoaDonTheoPhuongThuc = new LinkedHashMap<>();
-
-        for (Invoice hd : tatCaHoaDon) {
-            BigDecimal tien = (hd.getTotal() != null) ? hd.getTotal() : BigDecimal.ZERO;
-            tongDoanhThu = tongDoanhThu.add(tien);
-            tongSoHoaDon++;
-
-            LocalDateTime thoiGian = hd.getPaidAt();
-            if (thoiGian != null) {
-                // Kiểm tra nếu là hôm nay
-                if (thoiGian.toLocalDate().isEqual(homNay)) {
-                    doanhThuHomNay = doanhThuHomNay.add(tien);
-                }
-
-                // Nếu nằm trong khoảng số ngày lọc
-                if (!thoiGian.isBefore(tuNgay)) {
-                    String ngayStr = thoiGian.toLocalDate().format(dtf);
-                    doanhThuTheoNgay.put(ngayStr, doanhThuTheoNgay.getOrDefault(ngayStr, BigDecimal.ZERO).add(tien));
-                    soHoaDonTheoNgay.put(ngayStr, soHoaDonTheoNgay.getOrDefault(ngayStr, 0L) + 1);
-                }
-            }
-
-            // Gom theo phương thức thanh toán
-            String pt = (hd.getPaymentMethod() != null && !hd.getPaymentMethod().isBlank())
-                    ? hd.getPaymentMethod().toUpperCase()
-                    : "CASH";
-            doanhThuTheoPhuongThuc.put(pt, doanhThuTheoPhuongThuc.getOrDefault(pt, BigDecimal.ZERO).add(tien));
-            soHoaDonTheoPhuongThuc.put(pt, soHoaDonTheoPhuongThuc.getOrDefault(pt, 0L) + 1);
+        LocalDate today = LocalDate.now();
+        LocalDateTime from = today.minusDays(dayCount - 1).atStartOfDay();
+        LocalDateTime until = today.plusDays(1).atStartOfDay();
+        List<Invoice> invoices = invoiceRepository.findByPaidAtGreaterThanEqualAndPaidAtLessThan(from, until);
+        Map<String, BigDecimal> revenueByDay = new TreeMap<>();
+        Map<String, Long> countByDay = new HashMap<>();
+        Map<String, BigDecimal> revenueByMethod = new TreeMap<>();
+        Map<String, Long> countByMethod = new HashMap<>();
+        for (int offset = dayCount - 1; offset >= 0; offset--) {
+            String date = today.minusDays(offset).toString();
+            revenueByDay.put(date, BigDecimal.ZERO);
+            countByDay.put(date, 0L);
         }
-
-        // Tính giá trị trung bình trên mỗi hóa đơn
-        BigDecimal trungBinhDon = (tongSoHoaDon > 0)
-                ? tongDoanhThu.divide(BigDecimal.valueOf(tongSoHoaDon), 0, RoundingMode.HALF_UP)
-                : BigDecimal.ZERO;
-
-        // Chuyển map ngày sang List DTO
-        List<DailyRevenueItem> danhSachNgay = new ArrayList<>();
-        for (Map.Entry<String, BigDecimal> entry : doanhThuTheoNgay.entrySet()) {
-            danhSachNgay.add(new DailyRevenueItem(
-                    entry.getKey(),
-                    entry.getValue(),
-                    soHoaDonTheoNgay.getOrDefault(entry.getKey(), 0L)
-            ));
+        BigDecimal total = BigDecimal.ZERO;
+        BigDecimal todayRevenue = BigDecimal.ZERO;
+        long count = 0;
+        for (Invoice invoice : invoices) {
+            LocalDateTime paidAt = invoice.getPaidAt();
+            if (paidAt == null || paidAt.isBefore(from) || !paidAt.isBefore(until)) continue;
+            BigDecimal amount = invoice.getTotal() == null ? BigDecimal.ZERO : invoice.getTotal();
+            total = total.add(amount);
+            count++;
+            String date = paidAt.toLocalDate().toString();
+            revenueByDay.merge(date, amount, BigDecimal::add);
+            countByDay.merge(date, 1L, Long::sum);
+            if (paidAt.toLocalDate().equals(today)) todayRevenue = todayRevenue.add(amount);
+            String method = invoice.getPaymentMethod() == null || invoice.getPaymentMethod().isBlank()
+                    ? "CASH" : invoice.getPaymentMethod().trim().toUpperCase(Locale.ROOT);
+            revenueByMethod.merge(method, amount, BigDecimal::add);
+            countByMethod.merge(method, 1L, Long::sum);
         }
-
-        // Chuyển map phương thức thanh toán sang List DTO
-        List<PaymentMethodRevenueItem> danhSachPhuongThuc = new ArrayList<>();
-        for (Map.Entry<String, BigDecimal> entry : doanhThuTheoPhuongThuc.entrySet()) {
-            danhSachPhuongThuc.add(new PaymentMethodRevenueItem(
-                    entry.getKey(),
-                    entry.getValue(),
-                    soHoaDonTheoPhuongThuc.getOrDefault(entry.getKey(), 0L)
-            ));
-        }
-
-        return new RevenueReportResponse(
-                tongDoanhThu,
-                tongSoHoaDon,
-                trungBinhDon,
-                doanhThuHomNay,
-                danhSachNgay,
-                danhSachPhuongThuc
-        );
+        List<DailyRevenueItem> daily = revenueByDay.entrySet().stream()
+                .map(entry -> new DailyRevenueItem(entry.getKey(), entry.getValue(), countByDay.get(entry.getKey())))
+                .toList();
+        List<PaymentMethodRevenueItem> methods = revenueByMethod.entrySet().stream()
+                .map(entry -> new PaymentMethodRevenueItem(entry.getKey(), entry.getValue(), countByMethod.get(entry.getKey())))
+                .toList();
+        BigDecimal average = count == 0 ? BigDecimal.ZERO : total.divide(BigDecimal.valueOf(count), 0, RoundingMode.HALF_UP);
+        return new RevenueReportResponse(total, count, average, todayRevenue, daily, methods);
     }
 
-    /**
-     * BƯỚC 15: TẠO HÓA ĐƠN THỦ CÔNG
-     */
     @Override
     public Invoice create(Invoice invoice) {
-        invoice.setId(null);
-        if (invoice.getPaidAt() == null) {
-            invoice.setPaidAt(LocalDateTime.now());
-        }
-        return invoiceRepository.save(invoice);
+        if (invoice == null) throw new BadRequestException("Thông tin hóa đơn không hợp lệ");
+        // Legacy API must use the same validated checkout and server-calculated totals.
+        return checkout(new CheckoutRequest(invoice.getOrderId(), invoice.getDiscount(), invoice.getPaymentMethod()));
     }
 
-    /**
-     * BƯỚC 16: LẤY DANH SÁCH TOÀN BỘ HÓA ĐƠN
-     */
     @Override
     @Transactional(readOnly = true)
-    public List<Invoice> getAll() {
-        return invoiceRepository.findAll();
-    }
+    public List<Invoice> getAll() { return invoiceRepository.findAll(); }
 
-    /**
-     * BƯỚC 17: LẤY HÓA ĐƠN CỦA 1 ĐƠN HÀNG CỤ THỂ
-     */
     @Override
     @Transactional(readOnly = true)
-    public List<Invoice> getByOrderId(Integer orderId) {
-        return invoiceRepository.findByOrderId(orderId);
-    }
+    public List<Invoice> getByOrderId(Integer orderId) { return invoiceRepository.findByOrderId(orderId); }
 
-    /**
-     * BƯỚC 18: TÌM HÓA ĐƠN THEO ID
-     */
     @Override
     @Transactional(readOnly = true)
     public Invoice getById(Integer id) {
@@ -379,31 +256,15 @@ public class InvoiceServiceImpl implements InvoiceService {
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy hóa đơn có mã ID: " + id));
     }
 
-    /**
-     * BƯỚC 19: CẬP NHẬT HÓA ĐƠN
-     */
     @Override
-    public Invoice update(Integer id, Invoice invoiceMoi) {
-        Invoice hoaDonCu = getById(id);
-
-        hoaDonCu.setOrderId(invoiceMoi.getOrderId());
-        hoaDonCu.setSubtotal(invoiceMoi.getSubtotal());
-        hoaDonCu.setDiscount(invoiceMoi.getDiscount());
-        hoaDonCu.setTotal(invoiceMoi.getTotal());
-        hoaDonCu.setPaymentMethod(invoiceMoi.getPaymentMethod());
-        if (invoiceMoi.getPaidAt() != null) {
-            hoaDonCu.setPaidAt(invoiceMoi.getPaidAt());
-        }
-
-        return invoiceRepository.save(hoaDonCu);
+    public Invoice update(Integer id, Invoice invoice) {
+        getById(id);
+        throw new BadRequestException("Hóa đơn đã phát hành không được sửa trực tiếp");
     }
 
-    /**
-     * BƯỚC 20: XÓA HÓA ĐƠN
-     */
     @Override
     public void delete(Integer id) {
-        Invoice hoaDon = getById(id);
-        invoiceRepository.delete(hoaDon);
+        getById(id);
+        throw new BadRequestException("Hóa đơn đã phát hành không được xóa trực tiếp");
     }
 }

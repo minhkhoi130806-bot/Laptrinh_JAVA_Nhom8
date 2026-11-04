@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { useApi } from "@/lib/hooks";
 import { vnd, num } from "@/lib/api";
+import { canAccessAdminRoute, useStaffRole } from "@/lib/admin/access";
 import PageHeader from "@/components/admin/PageHeader";
 import StateBox from "@/components/admin/StateBox";
 
@@ -26,6 +27,7 @@ function Stat({ label, value, hint, href }) {
   );
 }
 export default function AnalyticsPage() {
+  const role = useStaffRole();
   const rev = useApi("/invoices/report/revenue?days=30");
   const orders = useApi("/orders");
   const tables = useApi("/tables");
@@ -82,7 +84,7 @@ export default function AnalyticsPage() {
       />
       <div className="adm-stats" style={{ marginTop: 16 }}>
         <Stat
-          label="Doanh thu 30 ngày"
+          label="Doanh thu 30 ngày gần nhất"
           value={vnd(revenue.totalRevenue || 0)}
           hint={`${num(revenue.totalInvoices || 0)} hóa đơn`}
           href="/admin/reports"
@@ -137,7 +139,7 @@ export default function AnalyticsPage() {
               "Kiểm soát công việc vệ sinh",
             ],
             ["Sự cố thiết bị", "/admin/maintenance", "Theo dõi sửa chữa"],
-          ].map(([title, href, desc]) => (
+          ].filter(([, href]) => canAccessAdminRoute(href, role)).map(([title, href, desc]) => (
             <Link
               key={href}
               href={href}

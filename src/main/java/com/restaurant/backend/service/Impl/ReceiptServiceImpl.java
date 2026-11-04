@@ -19,14 +19,19 @@ import com.restaurant.backend.repository.IngredientRepository;
 import com.restaurant.backend.repository.PurchaseReceiptRepository;
 import com.restaurant.backend.repository.SupplierRepository;
 import com.restaurant.backend.service.ReceiptService;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.LockModeType;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 @Service
@@ -37,28 +42,34 @@ public class ReceiptServiceImpl implements ReceiptService {
     private final EmployeeRepository employeeRepository;
     private final IngredientRepository ingredientRepository;
     private final ReceiptMapper mapper;
+    private final EntityManager entityManager;
 
     public ReceiptServiceImpl(PurchaseReceiptRepository receiptRepository,
                               SupplierRepository supplierRepository,
                               EmployeeRepository employeeRepository,
                               IngredientRepository ingredientRepository,
-                              ReceiptMapper mapper) {
+                              ReceiptMapper mapper,
+                              EntityManager entityManager) {
         this.receiptRepository = receiptRepository;
         this.supplierRepository = supplierRepository;
         this.employeeRepository = employeeRepository;
         this.ingredientRepository = ingredientRepository;
         this.mapper = mapper;
+        this.entityManager = entityManager;
     }
 
     // Lập phiếu nhập: lưu phiếu + chi tiết, đồng thời CỘNG số lượng vào tồn kho nguyên liệu
     @Override
-    @Transactional
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     public ReceiptResponse create(ReceiptRequest request) {
         if (request == null || request.supplierId() == null) {
             throw new BadRequestException("Vui lòng chọn nhà cung cấp");
         }
         if (request.details() == null || request.details().isEmpty()) {
             throw new BadRequestException("Phiếu nhập phải có ít nhất 1 nguyên liệu");
+        }
+        if (request.note() != null && request.note().length() > 3000) {
+            throw new BadRequestException("Ghi chú phiếu nhập không được quá 3000 ký tự");
         }
 
         Supplier supplier = supplierRepository.findById(request.supplierId())
@@ -67,6 +78,9 @@ public class ReceiptServiceImpl implements ReceiptService {
         if (request.employeeId() != null) {
             employee = employeeRepository.findById(request.employeeId())
                     .orElseThrow(() -> new NotFoundException("Không tìm thấy nhân viên id = " + request.employeeId()));
+            if (Boolean.TRUE.equals(employee.getDeleted())) {
+                throw new BadRequestException("Không thể chọn nhân viên đã ngừng hoạt động để lập phiếu nhập");
+            }
         }
 
         PurchaseReceipt receipt = new PurchaseReceipt();
@@ -78,7 +92,7 @@ public class ReceiptServiceImpl implements ReceiptService {
         BigDecimal total = BigDecimal.ZERO;
         Set<Long> seen = new HashSet<>();
         for (ReceiptDetailRequest line : request.details()) {
-            if (line.ingredientId() == null) {
+            if (line == null || line.ingredientId() == null || line.ingredientId() <= 0) {
                 throw new BadRequestException("Thiếu nguyên liệu trong phiếu nhập");
             }
             if (!seen.add(line.ingredientId())) {
@@ -90,8 +104,19 @@ public class ReceiptServiceImpl implements ReceiptService {
             if (line.unitPrice() == null || line.unitPrice().compareTo(BigDecimal.ZERO) < 0) {
                 throw new BadRequestException("Đơn giá nhập không hợp lệ");
             }
-            Ingredient ingredient = ingredientRepository.findById(line.ingredientId())
-                    .orElseThrow(() -> new NotFoundException("Không tìm thấy nguyên liệu id = " + line.ingredientId()));
+        }
+
+        // Cùng thứ tự khóa như thanh toán để không mất lần nhập khi hai thao tác chạy đồng thời.
+        Map<Long, Ingredient> lockedIngredients = new LinkedHashMap<>();
+        for (Long ingredientId : seen.stream().sorted().toList()) {
+            Ingredient ingredient = ingredientRepository.findByIdForUpdate(ingredientId)
+                    .orElseThrow(() -> new NotFoundException("Không tìm thấy nguyên liệu id = " + ingredientId));
+            entityManager.refresh(ingredient, LockModeType.PESSIMISTIC_WRITE);
+            lockedIngredients.put(ingredientId, ingredient);
+        }
+
+        for (ReceiptDetailRequest line : request.details()) {
+            Ingredient ingredient = lockedIngredients.get(line.ingredientId());
 
             ReceiptDetail detail = new ReceiptDetail();
             detail.setId(new ReceiptDetailId(null, ingredient.getId()));
@@ -162,6 +187,9 @@ public class ReceiptServiceImpl implements ReceiptService {
         String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm"));
         String entry = "[" + timestamp + " - Kiểm toán/Giải trình]: " + trimmed;
         String updated = (existing == null || existing.isBlank()) ? entry : existing + "\n" + entry;
+        if (updated.length() > 3000) {
+            throw new BadRequestException("Tổng nội dung ghi chú phiếu nhập không được quá 3000 ký tự");
+        }
 
         receipt.setNote(updated);
         return mapper.toResponse(receiptRepository.save(receipt));

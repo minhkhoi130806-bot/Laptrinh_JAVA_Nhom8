@@ -9,7 +9,10 @@ import com.restaurant.backend.exception.NotFoundException;
 import com.restaurant.backend.mapper.IngredientMapper;
 import com.restaurant.backend.repository.IngredientRepository;
 import com.restaurant.backend.service.IngredientService;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.LockModeType;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
@@ -20,10 +23,13 @@ public class IngredientServiceImpl implements IngredientService {
 
     private final IngredientRepository ingredientRepository;
     private final IngredientMapper mapper;
+    private final EntityManager entityManager;
 
-    public IngredientServiceImpl(IngredientRepository ingredientRepository, IngredientMapper mapper) {
+    public IngredientServiceImpl(IngredientRepository ingredientRepository, IngredientMapper mapper,
+                                 EntityManager entityManager) {
         this.ingredientRepository = ingredientRepository;
         this.mapper = mapper;
+        this.entityManager = entityManager;
     }
 
     @Override
@@ -52,10 +58,12 @@ public class IngredientServiceImpl implements IngredientService {
     }
 
     @Override
-    @Transactional
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     public IngredientResponse update(Long id, IngredientRequest request) {
         validate(request);
-        Ingredient existing = find(id);
+        Ingredient existing = ingredientRepository.findByIdForUpdate(id)
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy nguyên liệu id = " + id));
+        entityManager.refresh(existing, LockModeType.PESSIMISTIC_WRITE);
         if (ingredientRepository.existsByNameAndIdNot(request.name().trim(), id)) {
             throw new BadRequestException("Tên nguyên liệu đã tồn tại");
         }
@@ -65,9 +73,11 @@ public class IngredientServiceImpl implements IngredientService {
 
     // Nguyên liệu đang nằm trong công thức / phiếu nhập sẽ bị DB chặn -> GlobalExceptionHandler trả 409
     @Override
-    @Transactional
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     public void delete(Long id) {
-        ingredientRepository.delete(find(id));
+        Ingredient existing = ingredientRepository.findByIdForUpdate(id)
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy nguyên liệu id = " + id));
+        ingredientRepository.delete(existing);
         ingredientRepository.flush();
     }
 
