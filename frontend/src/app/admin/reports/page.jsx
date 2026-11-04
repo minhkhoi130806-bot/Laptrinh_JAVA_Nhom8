@@ -66,6 +66,7 @@ export default function ReportsPage() {
       const res = await api('/menu-items/sync-out-of-stock', { method: 'POST' });
       toast(res.message || 'Đã đồng bộ trạng thái món ăn thành công');
       stockApi.reload();
+      bestApi.reload();
     } catch (e) {
       toast(e.message, 'err');
     } finally {
@@ -132,7 +133,7 @@ export default function ReportsPage() {
           onClick={handleSyncOutOfStock}
           title="Tự động kiểm tra công thức món và tắt bán các món thiếu nguyên liệu"
         >
-          <Icon name="sparkle" size={15} />{syncing ? 'Đang đồng bộ…' : 'Đồng bộ món hết hàng'}
+          <Icon name="sparkle" size={15} />{syncing ? 'Đang kiểm tra…' : 'Tạm ngưng món thiếu nguyên liệu'}
         </button>
       </PageHeader>
 
@@ -180,7 +181,7 @@ export default function ReportsPage() {
           {/* CÁC THẺ THỐNG KÊ TỔNG QUAN DOANH THU */}
           <div className="adm-stats">
             <div className="adm-stat">
-              <span className="adm-muted">Tổng doanh thu</span>
+              <span className="adm-muted">Doanh thu {revDays} ngày</span>
               <b style={{ color: 'var(--green)' }}>{vnd(revData.totalRevenue)}</b>
             </div>
             <div className="adm-stat">
@@ -455,10 +456,11 @@ export default function ReportsPage() {
       {tab === 'bestSellers' && (
         <div className="rep-content">
           <div className="adm-card adm-section">
-            <h3 style={{ marginBottom: 12 }}>Bảng xếp hạng món bán chạy nhất (Top Sellers)</h3>
+            <h3 style={{ marginBottom: 12 }}>Bảng xếp hạng món trong đơn đã thanh toán</h3>
+            <p className="adm-muted">Tổng hợp toàn bộ thời gian. Giá trị món tính trước giảm giá hóa đơn.</p>
             {bestList.length === 0 ? (
               <div className="adm-empty">
-                Chưa có dữ liệu gọi món từ các đơn hàng. Khi có đơn hàng được tạo và bán, hệ thống sẽ xếp hạng tại đây!
+                Chưa có món trong đơn đã thanh toán để xếp hạng.
               </div>
             ) : (
               <div className="adm-table-wrap">
@@ -470,7 +472,7 @@ export default function ReportsPage() {
                       <th>Danh mục</th>
                       <th style={{ textAlign: 'right' }}>Giá bán</th>
                       <th style={{ textAlign: 'right' }}>Số lượng đã bán</th>
-                      <th style={{ textAlign: 'right' }}>Tổng doanh thu</th>
+                      <th style={{ textAlign: 'right' }}>Giá trị món trước giảm giá</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -508,6 +510,7 @@ export default function ReportsPage() {
         <div className="rep-content">
           <div className="adm-card adm-section">
             <h3 style={{ marginBottom: 12 }}>Tình trạng nguyên liệu của thực đơn</h3>
+            <p className="adm-muted">Kiểm tra lượng nguyên liệu cho một phần món. Sau khi nhập đủ hàng, vào Món ăn để chủ động bật bán lại món đã tạm ngưng.</p>
             <div className="adm-table-wrap">
               <table className="adm-table">
                 <thead>

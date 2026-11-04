@@ -3,6 +3,12 @@
 export async function api(path, { method = 'GET', body, signal } = {}) {
   const isForm = typeof FormData !== 'undefined' && body instanceof FormData;
   const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+  const pathname = path.split('?')[0];
+  // Chỉ GET thực đơn/danh mục là công khai. Thêm, sửa, xóa và cập nhật công thức cần token nhân viên.
+  const isPublicCatalogRead = method.toUpperCase() === 'GET' && (
+    pathname === '/menu-items' || pathname.startsWith('/menu-items/') ||
+    pathname === '/categories' || pathname.startsWith('/categories/')
+  );
 
   const isPublicShopEndpoint =
     path.startsWith('/customers/public-') ||
@@ -11,8 +17,7 @@ export async function api(path, { method = 'GET', body, signal } = {}) {
     path.startsWith('/reservations/public') ||
     path.startsWith('/public-orders') ||
     path.startsWith('/payments/') ||
-    path.startsWith('/menu-items') ||
-    path.startsWith('/categories') ||
+    isPublicCatalogRead ||
     path.startsWith('/contact') ||
     path.startsWith('/event-inquiries');
 

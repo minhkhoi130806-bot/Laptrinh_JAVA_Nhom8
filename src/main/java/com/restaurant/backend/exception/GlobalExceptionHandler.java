@@ -10,6 +10,11 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.dao.OptimisticLockingFailureException;
+import org.springframework.dao.PessimisticLockingFailureException;
+import org.springframework.web.server.ResponseStatusException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(GlobalExceptionHandler.class);
@@ -22,10 +27,33 @@ public class GlobalExceptionHandler {private static final org.slf4j.Logger log =
     }
 
     // Khong tim thay tai nguyen (404)
-    @ExceptionHandler(ResourceNotFoundException.class)
+    @ExceptionHandler({ResourceNotFoundException.class, NotFoundException.class})
     public ResponseEntity<ApiError> handleNotFound(
-            ResourceNotFoundException ex, HttpServletRequest request) {
+            RuntimeException ex, HttpServletRequest request) {
         return buildResponse(HttpStatus.NOT_FOUND, ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<ApiError> handleValidation(MethodArgumentNotValidException ex, HttpServletRequest request) {
+        String message = ex.getBindingResult().getFieldErrors().stream()
+                .map(error -> error.getField() + ": " + error.getDefaultMessage())
+                .collect(java.util.stream.Collectors.joining("; "));
+        return buildResponse(HttpStatus.BAD_REQUEST, message, request);
+    }
+
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<ApiError> handleForbidden(AccessDeniedException ex, HttpServletRequest request) {
+        return buildResponse(HttpStatus.FORBIDDEN, "Bạn không có quyền thực hiện thao tác này", request);
+    }
+
+    @ExceptionHandler({OptimisticLockingFailureException.class, PessimisticLockingFailureException.class})
+    public ResponseEntity<ApiError> handleConcurrentUpdate(RuntimeException ex, HttpServletRequest request) {
+        return buildResponse(HttpStatus.CONFLICT, "Dữ liệu vừa được cập nhật. Hãy tải lại và thử lại thao tác", request);
+    }
+
+    @ExceptionHandler(ResponseStatusException.class)
+    public ResponseEntity<ApiError> handleStatus(ResponseStatusException ex, HttpServletRequest request) {
+        return buildResponse(HttpStatus.valueOf(ex.getStatusCode().value()), ex.getReason(), request);
     }
 
     // Body JSON sai dinh dang (400)
@@ -77,10 +105,9 @@ public class GlobalExceptionHandler {private static final org.slf4j.Logger log =
     public ResponseEntity<ApiError> handleDataAccess(
             DataAccessException ex, HttpServletRequest request) {
         log.error("Lỗi CSDL khi gọi {}: {}", request.getRequestURI(), ex.getMessage(), ex);
-        String cause = ex.getMostSpecificCause() != null ? ex.getMostSpecificCause().getMessage() : ex.getMessage();
         return buildResponse(
                 HttpStatus.INTERNAL_SERVER_ERROR,
-                "Không thể truy cập dữ liệu: " + cause,
+                "Không thể truy cập dữ liệu. Vui lòng thử lại sau",
                 request
         );
     }
@@ -96,9 +123,10 @@ public class GlobalExceptionHandler {private static final org.slf4j.Logger log =
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<ApiError> handleRuntimeException(
             RuntimeException ex, HttpServletRequest request) {
+        log.error("Lỗi xử lý {}", request.getRequestURI(), ex);
         return buildResponse(
-                HttpStatus.BAD_REQUEST,
-                ex.getMessage(),
+                HttpStatus.INTERNAL_SERVER_ERROR,
+                "Không thể hoàn tất thao tác. Vui lòng thử lại sau",
                 request
         );
     }

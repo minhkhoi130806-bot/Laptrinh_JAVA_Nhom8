@@ -98,8 +98,8 @@ export default function MenuPlannerPage() {
           </div>
         )}
         <div style={{ marginTop: 12 }}>
-          <Link className="adm-btn ghost sm" href="/admin/reports">
-            Mở báo cáo tồn kho →
+          <Link className="adm-btn ghost sm" href="/admin/ingredients">
+            Kiểm tra tồn kho nguyên liệu →
           </Link>
         </div>
       </div>

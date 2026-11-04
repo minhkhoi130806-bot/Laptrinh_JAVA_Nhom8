@@ -1,6 +1,7 @@
 package com.restaurant.backend.service;
 
 import com.restaurant.backend.dto.OrderTotals;
+import com.restaurant.backend.dto.CreateOrderRequest;
 import com.restaurant.backend.entity.Order;
 
 import java.util.Collection;
@@ -31,6 +32,8 @@ public interface OrderService {
      * @return Đơn hàng vừa được lưu vào CSDL
      */
     Order create(Order order);
+
+    Order createWithItems(CreateOrderRequest request);
 
     /**
      * Lấy danh sách các đơn hàng, có thể lọc theo mã khách hàng hoặc trạng thái

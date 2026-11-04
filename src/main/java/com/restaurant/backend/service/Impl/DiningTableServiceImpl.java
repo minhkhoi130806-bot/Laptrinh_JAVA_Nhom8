@@ -9,21 +9,30 @@ import com.restaurant.backend.exception.NotFoundException;
 import com.restaurant.backend.repository.DiningTableRepository;
 import com.restaurant.backend.repository.ReservationRepository;
 import com.restaurant.backend.service.DiningTableService;
+import com.restaurant.backend.service.TableStateService;
+import jakarta.persistence.EntityManager;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.annotation.Isolation;
 
 import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
+@Transactional(isolation = Isolation.READ_COMMITTED)
 public class DiningTableServiceImpl implements DiningTableService {
 
     private final DiningTableRepository tableRepository;
     private final ReservationRepository reservationRepository;
+    private final TableStateService tableStateService;
+    private final EntityManager entityManager;
 
-    public DiningTableServiceImpl(DiningTableRepository tableRepository, ReservationRepository reservationRepository) {
+    public DiningTableServiceImpl(DiningTableRepository tableRepository, ReservationRepository reservationRepository,
+                                 TableStateService tableStateService, EntityManager entityManager) {
         this.tableRepository = tableRepository;
         this.reservationRepository = reservationRepository;
+        this.tableStateService = tableStateService;
+        this.entityManager = entityManager;
     }
 
     @Override
@@ -60,7 +69,8 @@ public class DiningTableServiceImpl implements DiningTableService {
     @Transactional
     public DiningTable update(Long id, DiningTable data) {
         validate(data);
-        DiningTable existing = getById(id);
+        DiningTable existing = lockTable(id);
+        preventFreeingActiveTable(id, data.getStatus());
         if (tableRepository.existsByTableCodeAndIdNot(data.getTableCode(), id)) {
             throw new BadRequestException("Mã bàn đã tồn tại");
         }
@@ -77,7 +87,8 @@ public class DiningTableServiceImpl implements DiningTableService {
         if (status == null) {
             throw new BadRequestException("Trạng thái bàn không được để trống");
         }
-        DiningTable existing = getById(id);
+        DiningTable existing = lockTable(id);
+        preventFreeingActiveTable(id, status);
         existing.setStatus(status);
         return tableRepository.save(existing);
     }
@@ -85,18 +96,21 @@ public class DiningTableServiceImpl implements DiningTableService {
     @Override
     @Transactional
     public DiningTable release(Long id) {
-        DiningTable existing = getById(id);
-        LocalDateTime now = LocalDateTime.now();
-        boolean held = !reservationRepository.findByTableIdAndStatusAndReservedAtBetween(
-                id, ReservationStatus.CONFIRMED, now.minusMinutes(30), now.plusMinutes(30)).isEmpty();
-        existing.setStatus(held ? TableStatus.RESERVED : TableStatus.AVAILABLE);
-        return tableRepository.save(existing);
+        DiningTable existing = lockTable(id);
+        if (tableStateService.hasActiveOrders(Math.toIntExact(id))) {
+            throw new BadRequestException("Bàn còn đơn chưa kết thúc. Hãy thanh toán hoặc hủy đơn trước khi trả bàn");
+        }
+        tableStateService.refresh(Math.toIntExact(id));
+        return existing;
     }
 
     @Override
     @Transactional
     public void delete(Long id) {
-        DiningTable existing = getById(id);
+        DiningTable existing = lockTable(id);
+        if (tableStateService.hasActiveOrders(Math.toIntExact(id))) {
+            throw new BadRequestException("Không thể xóa bàn còn đơn đang mở");
+        }
         long active = reservationRepository.findByTableId(id).stream()
                 .filter(r -> r.getStatus() == ReservationStatus.PENDING || r.getStatus() == ReservationStatus.CONFIRMED)
                 .count();
@@ -111,7 +125,7 @@ public class DiningTableServiceImpl implements DiningTableService {
     @Override
     @Transactional
     public DiningTable restore(Long id) {
-        DiningTable existing = getById(id);
+        DiningTable existing = lockTable(id);
         existing.setDeleted(false);
         existing.setDeletedAt(null);
         return tableRepository.save(existing);
@@ -120,7 +134,7 @@ public class DiningTableServiceImpl implements DiningTableService {
     @Override
     @Transactional
     public void purge(Long id) {
-        DiningTable existing = getById(id);
+        DiningTable existing = lockTable(id);
         if (!Boolean.TRUE.equals(existing.getDeleted())) {
             throw new BadRequestException("Chỉ xóa vĩnh viễn được bàn đang trong thùng rác");
         }
@@ -137,5 +151,19 @@ public class DiningTableServiceImpl implements DiningTableService {
         if (table.getZone() == null || table.getZone().isBlank()) {
             throw new BadRequestException("Khu vực không được để trống");
         }
+        if (table.getStatus() == null) table.setStatus(TableStatus.AVAILABLE);
+    }
+
+    private void preventFreeingActiveTable(Long id, TableStatus status) {
+        if (status != TableStatus.OCCUPIED && tableStateService.hasActiveOrders(Math.toIntExact(id))) {
+            throw new BadRequestException("Bàn còn đơn đang mở, không thể đánh dấu trống hoặc đã đặt");
+        }
+    }
+
+    private DiningTable lockTable(Long id) {
+        DiningTable table = tableRepository.findByIdForUpdate(id)
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy bàn " + id));
+        entityManager.refresh(table);
+        return table;
     }
 }

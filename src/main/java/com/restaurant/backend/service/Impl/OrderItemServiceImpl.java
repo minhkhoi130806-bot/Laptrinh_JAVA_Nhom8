@@ -13,219 +13,195 @@ import com.restaurant.backend.repository.OrderItemRepository;
 import com.restaurant.backend.repository.OrderRepository;
 import com.restaurant.backend.repository.RecipeRepository;
 import com.restaurant.backend.service.OrderItemService;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.LockModeType;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Optional;
+import java.util.Map;
 
-/**
- * =========================================================================
- * LỚP THỰC THI NGHIỆP VỤ GỌI MÓN (OrderItemServiceImpl)
- * Người phụ trách: Ngô Minh Khôi (Tuần 3 & Tuần 4 - Nghiệp vụ Đơn hàng & Kiểm tra Kho)
- * 
- * Mục đích và yêu cầu trọng tâm:
- * 1. API thêm/sửa/xóa món trong đơn hàng.
- * 2. LƯU UNIT_PRICE LÚC GỌI: Khi khách gọi món, hệ thống tự động tìm giá
- *    niêm yết của món ăn trong bảng thực đơn (menu_item) và lưu cố định vào cột
- *    unit_price của chi tiết đơn hàng (order_item).
- * 3. Nếu khách gọi thêm món đã có trong đơn, hệ thống tự động cộng dồn số lượng.
- * 4. KẾ HOẠCH TUẦN 4 (Khôi): Chặn gọi món khi món đang ngưng bán (available = false)
- *    hoặc kho không đủ nguyên liệu theo công thức (Recipe) để chế biến -> trả mã lỗi 400.
- * =========================================================================
- */
+/** Gọi món chỉ được thay đổi khi đơn còn mở; đơn giá được chốt từ thực đơn. */
 @Service
-@Transactional
+@Transactional(isolation = Isolation.READ_COMMITTED)
 public class OrderItemServiceImpl implements OrderItemService {
 
     private final OrderItemRepository orderItemRepository;
     private final OrderRepository orderRepository;
     private final MenuItemRepository menuItemRepository;
     private final RecipeRepository recipeRepository;
+    private final EntityManager entityManager;
 
-    // Tiêm các Repository cần thiết qua Constructor
     public OrderItemServiceImpl(
             OrderItemRepository orderItemRepository,
             OrderRepository orderRepository,
             MenuItemRepository menuItemRepository,
-            RecipeRepository recipeRepository) {
+            RecipeRepository recipeRepository,
+            EntityManager entityManager) {
         this.orderItemRepository = orderItemRepository;
         this.orderRepository = orderRepository;
         this.menuItemRepository = menuItemRepository;
         this.recipeRepository = recipeRepository;
+        this.entityManager = entityManager;
     }
 
-    /**
-     * BƯỚC 1: THÊM MÓN VÀO ĐƠN HÀNG (Gọi món)
-     * Đã bổ sung kiểm tra available và kiểm tra nguyên liệu tồn kho theo Recipe (Tuần 4 - Khôi)
-     */
     @Override
-    public OrderItem create(OrderItem orderItem) {
-        // Kiểm tra xem ID kép (gồm orderId và menuItemId) có được truyền hay không
-        if (orderItem.getId() == null) {
-            throw new BadRequestException("Thiếu thông tin mã đơn hàng hoặc mã món ăn");
+    public OrderItem create(OrderItem input) {
+        if (input == null) throw new BadRequestException("Thiếu thông tin món gọi");
+        validateId(input.getId());
+        Integer orderId = input.getId().getOrderId();
+        Integer menuItemId = input.getId().getMenuItemId();
+        lockOpenOrder(orderId);
+
+        Menuitem menuItem = requireAvailableMenuItem(menuItemId);
+        if (input.getQuantity() == null || input.getQuantity() <= 0) {
+            throw new BadRequestException("Số lượng món phải lớn hơn 0");
+        }
+        String note = normalizeNote(input.getNote());
+        OrderItem existing = orderItemRepository.findById(input.getId()).orElse(null);
+        if (existing != null) entityManager.refresh(existing, LockModeType.PESSIMISTIC_WRITE);
+        int quantity;
+        try {
+            quantity = Math.addExact(existing == null ? 0 : existing.getQuantity(), input.getQuantity());
+        } catch (ArithmeticException exception) {
+            throw new BadRequestException("Số lượng món vượt giới hạn cho phép");
+        }
+        validateOrderStock(orderId, menuItemId, quantity);
+
+        if (existing != null) {
+            existing.setQuantity(quantity);
+            if (note != null) existing.setNote(note);
+            // Gọi thêm cùng món vẫn giữ đơn giá đã chốt của dòng cũ.
+            return orderItemRepository.save(existing);
         }
 
-        Integer maDonHang = orderItem.getId().getOrderId();
-        Integer maMonAn = orderItem.getId().getMenuItemId();
-
-        if (maDonHang == null || maMonAn == null) {
-            throw new BadRequestException("Mã đơn hàng và mã món ăn không được để trống");
-        }
-
-        // Bước 1.1: Kiểm tra xem đơn hàng có tồn tại trong CSDL hay không
-        Order donHang = orderRepository.findById(maDonHang)
-                .orElseThrow(() -> new NotFoundException("Không tìm thấy đơn hàng có mã ID: " + maDonHang));
-
-        // Nếu đơn hàng đã thanh toán (PAID) hoặc đã hủy (CANCELLED) thì không cho phép gọi thêm món
-        if ("PAID".equalsIgnoreCase(donHang.getStatus())) {
-            throw new BadRequestException("Đơn hàng này đã thanh toán xong, không thể gọi thêm món");
-        }
-        if ("CANCELLED".equalsIgnoreCase(donHang.getStatus())) {
-            throw new BadRequestException("Đơn hàng này đã bị hủy, không thể gọi thêm món");
-        }
-
-        // Bước 1.2: Tìm món ăn trong bảng menu_item để lấy thông tin món và giá tiền
-        Menuitem monAn = menuItemRepository.findById(Long.valueOf(maMonAn))
-                .orElseThrow(() -> new NotFoundException("Không tìm thấy món ăn có mã ID: " + maMonAn));
-
-        // Bước 1.2.1 (Tuần 4 - Khôi): Chặn gọi món khi món đang tạm ngừng bán (available = false)
-        if (Boolean.FALSE.equals(monAn.getAvailable())) {
-            throw new BadRequestException("Món '" + monAn.getNameVi() + "' hiện đang tạm ngưng phục vụ, không thể gọi món!");
-        }
-
-        // Bước 1.3: Đảm bảo số lượng gọi ít nhất là 1
-        if (orderItem.getQuantity() == null || orderItem.getQuantity() <= 0) {
-            orderItem.setQuantity(1);
-        }
-
-        int soLuongGoiThem = orderItem.getQuantity();
-
-        // Bước 1.3.1 (Tuần 4 - Khôi): Chặn gọi món khi kho thiếu nguyên liệu theo công thức (Recipe)
-        List<Recipe> danhSachCongThuc = recipeRepository.findByMenuItem(Long.valueOf(maMonAn));
-        if (danhSachCongThuc != null && !danhSachCongThuc.isEmpty()) {
-            for (Recipe recipe : danhSachCongThuc) {
-                Ingredient nguyenLieu = recipe.getIngredient();
-                if (nguyenLieu != null) {
-                    // Lấy số lượng nguyên liệu cần cho 1 phần ăn
-                    BigDecimal dinhLuongMotPhan = (recipe.getQuantityNeeded() != null) 
-                            ? recipe.getQuantityNeeded() 
-                            : BigDecimal.ZERO;
-                    // Lượng cần dùng cho số lượng món khách đang muốn gọi
-                    BigDecimal luongCanDung = dinhLuongMotPhan.multiply(BigDecimal.valueOf(soLuongGoiThem));
-
-                    // Lấy tồn kho hiện tại của nguyên liệu
-                    BigDecimal tonKhoHienTai = (nguyenLieu.getStockQty() != null) 
-                            ? nguyenLieu.getStockQty() 
-                            : BigDecimal.ZERO;
-
-                    // Nếu tồn kho không đủ để chế biến -> Báo lỗi mã 400 (BadRequest)
-                    if (tonKhoHienTai.compareTo(luongCanDung) < 0) {
-                        throw new BadRequestException("Món '" + monAn.getNameVi() + "' không đủ nguyên liệu '" 
-                                + nguyenLieu.getName() + "' trong kho để chế biến (cần: " 
-                                + luongCanDung + " " + nguyenLieu.getUnit() + ", trong kho chỉ còn: " 
-                                + tonKhoHienTai + " " + nguyenLieu.getUnit() + ")");
-                    }
-                }
-            }
-        }
-
-        // Bước 1.4: LƯU ĐƠN GIÁ (unit_price) TẠI THỜI ĐIỂM GỌI MÓN
-        // Nếu client không gửi đơn giá hoặc gửi đơn giá <= 0, ta lấy trực tiếp giá từ thực đơn
-        if (orderItem.getUnitPrice() == null || orderItem.getUnitPrice().compareTo(BigDecimal.ZERO) <= 0) {
-            orderItem.setUnitPrice(monAn.getPrice());
-        }
-
-        // Bước 1.5: Kiểm tra xem món ăn này đã có sẵn trong đơn hàng hay chưa
-        Optional<OrderItem> monDaCo = orderItemRepository.findById(orderItem.getId());
-
-        if (monDaCo.isPresent()) {
-            // Nếu món này đã có: Ta cộng dồn số lượng thêm vào số lượng cũ
-            OrderItem monCu = monDaCo.get();
-            int soLuongMoi = monCu.getQuantity() + orderItem.getQuantity();
-            monCu.setQuantity(soLuongMoi);
-
-            // Cập nhật lại ghi chú nếu có ghi chú mới
-            if (orderItem.getNote() != null && !orderItem.getNote().trim().isEmpty()) {
-                monCu.setNote(orderItem.getNote());
-            }
-
-            // Lưu lại và trả về
-            return orderItemRepository.save(monCu);
-        }
-
-        // Nếu món này chưa có trong đơn: Lưu mới vào CSDL
-        return orderItemRepository.save(orderItem);
+        input.setUnitPrice(menuItem.getPrice());
+        input.setNote(note);
+        return orderItemRepository.save(input);
     }
 
-    /**
-     * BƯỚC 2: LẤY TẤT CẢ CHI TIẾT MÓN ĂN
-     */
     @Override
     @Transactional(readOnly = true)
     public List<OrderItem> getAll() {
         return orderItemRepository.findAll();
     }
 
-    /**
-     * BƯỚC 3: LẤY CÁC MÓN ĂN CỦA 1 ĐƠN HÀNG CỤ THỂ
-     */
     @Override
     @Transactional(readOnly = true)
     public List<OrderItem> getByOrderId(Integer orderId) {
         return orderItemRepository.findByIdOrderId(orderId);
     }
 
-    /**
-     * BƯỚC 4: TÌM CHI TIẾT MÓN ĂN THEO KHÓA CHÍNH KÉP (orderId + menuItemId)
-     */
     @Override
     @Transactional(readOnly = true)
     public OrderItem getById(OrderItemId id) {
+        validateId(id);
         return orderItemRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException(
-                        "Không tìm thấy món ăn này trong đơn hàng (orderId=" 
-                        + id.getOrderId() + ", menuItemId=" + id.getMenuItemId() + ")"));
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy món ăn này trong đơn hàng"));
     }
 
-    /**
-     * BƯỚC 5: CẬP NHẬT MÓN TRONG ĐƠN (Sửa số lượng, sửa ghi chú)
-     */
     @Override
-    public OrderItem update(OrderItemId id, OrderItem duLieuMoi) {
-        OrderItem monHienTai = getById(id);
-
-        // Nếu người dùng nhập số lượng <= 0, ta hiểu là khách muốn hủy món này khỏi đơn
-        if (duLieuMoi.getQuantity() != null && duLieuMoi.getQuantity() <= 0) {
-            orderItemRepository.delete(monHienTai);
-            return monHienTai;
+    public OrderItem update(OrderItemId id, OrderItem input) {
+        validateId(id);
+        if (input == null) throw new BadRequestException("Thiếu thông tin món cần sửa");
+        lockOpenOrder(id.getOrderId());
+        OrderItem existing = getById(id);
+        entityManager.refresh(existing, LockModeType.PESSIMISTIC_WRITE);
+        int quantity = input.getQuantity() == null ? existing.getQuantity() : input.getQuantity();
+        if (quantity <= 0) {
+            orderItemRepository.delete(existing);
+            return existing;
         }
 
-        // Cập nhật số lượng mới
-        if (duLieuMoi.getQuantity() != null) {
-            monHienTai.setQuantity(duLieuMoi.getQuantity());
+        if (quantity > existing.getQuantity()) {
+            requireAvailableMenuItem(id.getMenuItemId());
+            validateOrderStock(id.getOrderId(), id.getMenuItemId(), quantity);
         }
-
-        // Cập nhật đơn giá nếu có chỉ định mới
-        if (duLieuMoi.getUnitPrice() != null && duLieuMoi.getUnitPrice().compareTo(BigDecimal.ZERO) > 0) {
-            monHienTai.setUnitPrice(duLieuMoi.getUnitPrice());
-        }
-
-        // Cập nhật ghi chú mới (ví dụ: "ít đá", "không cay")
-        if (duLieuMoi.getNote() != null) {
-            monHienTai.setNote(duLieuMoi.getNote());
-        }
-
-        return orderItemRepository.save(monHienTai);
+        // Giảm số lượng hoặc sửa ghi chú vẫn được phép nếu kho vừa thiếu/món vừa ngừng bán.
+        String note = input.getNote() == null ? existing.getNote() : normalizeNote(input.getNote());
+        existing.setQuantity(quantity);
+        existing.setNote(note);
+        // Không cho client thay đơn giá đã chốt bằng thao tác sửa số lượng/ghi chú.
+        return orderItemRepository.save(existing);
     }
 
-    /**
-     * BƯỚC 6: XÓA MÓN ĂN KHỎI ĐƠN HÀNG (Khách hủy món)
-     */
     @Override
     public void delete(OrderItemId id) {
-        OrderItem monHienTai = getById(id);
-        orderItemRepository.delete(monHienTai);
+        validateId(id);
+        lockOpenOrder(id.getOrderId());
+        orderItemRepository.delete(getById(id));
+    }
+
+    private void lockOpenOrder(Integer orderId) {
+        Order order = orderRepository.findByIdForUpdate(orderId)
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy đơn hàng có mã ID: " + orderId));
+        entityManager.refresh(order, LockModeType.PESSIMISTIC_WRITE);
+        if (!"OPEN".equalsIgnoreCase(order.getStatus()) && !"SERVING".equalsIgnoreCase(order.getStatus())) {
+            throw new BadRequestException("Đơn hàng đã kết thúc, không thể thay đổi món");
+        }
+    }
+
+    private Menuitem requireAvailableMenuItem(Integer menuItemId) {
+        Menuitem item = menuItemRepository.findById(menuItemId.longValue())
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy món ăn có mã ID: " + menuItemId));
+        if (Boolean.TRUE.equals(item.getDeleted()) || !Boolean.TRUE.equals(item.getAvailable())) {
+            throw new BadRequestException("Món '" + item.getNameVi() + "' hiện đang tạm ngưng phục vụ");
+        }
+        if (item.getPrice() == null || item.getPrice().signum() < 0) {
+            throw new BadRequestException("Giá món '" + item.getNameVi() + "' không hợp lệ");
+        }
+        return item;
+    }
+
+    /** Cộng nhu cầu chung của toàn bộ đơn, kể cả các món dùng chung một nguyên liệu. */
+    private void validateOrderStock(Integer orderId, Integer changedMenuItemId, int changedQuantity) {
+        Map<Integer, Integer> quantities = new LinkedHashMap<>();
+        for (OrderItem line : orderItemRepository.findByOrderIdForUpdate(orderId)) {
+            entityManager.refresh(line, LockModeType.PESSIMISTIC_WRITE);
+            quantities.put(line.getId().getMenuItemId(), line.getQuantity());
+        }
+        quantities.put(changedMenuItemId, changedQuantity);
+
+        Map<Long, BigDecimal> required = new HashMap<>();
+        Map<Long, Ingredient> ingredients = new HashMap<>();
+        for (Map.Entry<Integer, Integer> line : quantities.entrySet()) {
+            for (Recipe recipe : recipeRepository.findByMenuItem(line.getKey().longValue())) {
+                Ingredient ingredient = recipe.getIngredient();
+                if (ingredient == null || ingredient.getId() == null
+                        || recipe.getQuantityNeeded() == null || recipe.getQuantityNeeded().signum() <= 0) {
+                    throw new BadRequestException("Công thức món ăn không hợp lệ. Vui lòng kiểm tra lại nguyên liệu");
+                }
+                required.merge(ingredient.getId(), recipe.getQuantityNeeded()
+                        .multiply(BigDecimal.valueOf(line.getValue())), BigDecimal::add);
+                ingredients.put(ingredient.getId(), ingredient);
+            }
+        }
+        for (Map.Entry<Long, BigDecimal> requirement : required.entrySet()) {
+            Ingredient ingredient = ingredients.get(requirement.getKey());
+            BigDecimal stock = ingredient.getStockQty() == null ? BigDecimal.ZERO : ingredient.getStockQty();
+            if (stock.compareTo(requirement.getValue()) < 0) {
+                throw new BadRequestException("Đơn hàng không đủ nguyên liệu '" + ingredient.getName()
+                        + "' (tổng cần: " + requirement.getValue() + " " + ingredient.getUnit()
+                        + ", trong kho: " + stock + " " + ingredient.getUnit() + ")");
+            }
+        }
+    }
+
+    private static void validateId(OrderItemId id) {
+        if (id == null || id.getOrderId() == null || id.getMenuItemId() == null
+                || id.getOrderId() <= 0 || id.getMenuItemId() <= 0) {
+            throw new BadRequestException("Mã đơn hàng và mã món ăn không hợp lệ");
+        }
+    }
+
+    private static String normalizeNote(String note) {
+        if (note == null || note.isBlank()) return null;
+        String value = note.trim();
+        if (value.length() > 255) throw new BadRequestException("Ghi chú món không được quá 255 ký tự");
+        return value;
     }
 }

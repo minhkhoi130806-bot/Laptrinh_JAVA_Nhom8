@@ -3,6 +3,7 @@ package com.restaurant.backend.repository;
 import com.restaurant.backend.entity.Invoice;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -17,6 +18,9 @@ import java.util.Optional;
  * =========================================================================
  */
 public interface InvoiceRepository extends JpaRepository<Invoice, Integer> {
+    boolean existsByOrderId(Integer orderId);
+
+    List<Invoice> findByPaidAtGreaterThanEqualAndPaidAtLessThan(LocalDateTime from, LocalDateTime until);
 
     /**
      * Tìm danh sách hóa đơn theo mã đơn hàng

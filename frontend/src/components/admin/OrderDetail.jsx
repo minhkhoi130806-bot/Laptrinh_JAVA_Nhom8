@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { api, dt, vnd } from '@/lib/api';
 import { useApi, useLookups } from '@/lib/hooks';
 import { LK, nameOf } from '@/lib/admin/resources';
+import { canTakePayment, useStaffRole } from '@/lib/admin/access';
 import { PAYMENT_METHODS, paymentLabel } from '@/lib/constants';
 import Badge from './Badge';
 import Modal from './Modal';
@@ -13,10 +14,6 @@ import Thumb from './Thumb';
 import { useConfirm, useToast } from './Feedback';
 
 const DEFS = { customers: LK.customers, tables: LK.tables, employees: LK.employees, menu: LK.menu };
-
-// Cập nhật trạng thái bàn kèm theo đơn (không bắt buộc, lỗi thì bỏ qua)
-// Trả bàn: backend tự chọn Trống hoặc Đã đặt (nếu sắp có khách đã xác nhận)
-const releaseTable = (tableId) => (tableId == null ? null : api(`/tables/${tableId}/release`, { method: 'POST' }).catch(() => null));
 
 function PayDialog({ order, subtotal, onClose, onDone }) {
   const toast = useToast();
@@ -47,8 +44,9 @@ function PayDialog({ order, subtotal, onClose, onDone }) {
           <input className="adm-input" type="number" min="0" max={subtotal} step="1000" value={discount} onChange={(e) => setDiscount(e.target.value)} /></label>
         <label className="adm-field"><span className="adm-label">Phương thức thanh toán</span>
           <select className="adm-input" value={method} onChange={(e) => setMethod(e.target.value)}>
-            {PAYMENT_METHODS.map((m) => <option key={m.value} value={m.value}>{m.label}</option>)}
+            {PAYMENT_METHODS.map((m) => <option key={m.value} value={m.value}>{m.value === 'MOMO' ? 'MoMo (đã nhận tiền)' : m.label}</option>)}
           </select></label>
+        <p className="adm-muted">Chỉ xác nhận sau khi đã nhận đủ tiền. Với MoMo hoặc chuyển khoản, hãy kiểm tra giao dịch nhận tiền trước.</p>
         <div className="adm-sum"><div className="adm-grand"><span>Khách phải trả</span><span>{vnd(total)}</span></div></div>
         {err && <div className="adm-alert">{err}</div>}
         <div className="adm-form-f">
@@ -96,17 +94,78 @@ function EditInfo({ order, lk, onClose, onDone }) {
   );
 }
 
+function DishDialog({ orderId, lines, menu, editing, onClose, onDone }) {
+  const toast = useToast();
+  const [menuItemId, setMenuItemId] = useState(editing?.menuItemId ? String(editing.menuItemId) : '');
+  const [quantity, setQuantity] = useState(String(editing?.quantity || 1));
+  const [note, setNote] = useState(editing?.note || '');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const choices = menu.filter((dish) => dish.available && !dish.deleted && !lines.some((line) => Number(line.menuItemId) === Number(dish.id)));
+
+  const submit = async (event) => {
+    event.preventDefault();
+    if (!menuItemId || !Number.isInteger(Number(quantity)) || Number(quantity) < 1) {
+      setError('Hãy chọn món và nhập số lượng nguyên lớn hơn 0.');
+      return;
+    }
+    setBusy(true);
+    setError('');
+    try {
+      await api(editing ? `/order-items/${orderId}/${menuItemId}` : '/order-items', {
+        method: editing ? 'PUT' : 'POST',
+        body: { orderId: Number(orderId), menuItemId: Number(menuItemId), quantity: Number(quantity), note: note.trim() || null },
+      });
+      toast(editing ? 'Đã cập nhật món' : 'Đã gọi thêm món');
+      onDone();
+    } catch (requestError) {
+      setError(requestError.message);
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Modal title={editing ? 'Sửa số lượng / ghi chú món' : 'Gọi thêm món'} onClose={onClose}>
+      <form className="adm-form-grid" style={{ gridTemplateColumns: '1fr' }} onSubmit={submit}>
+        {editing ? <b>{menu.find((dish) => Number(dish.id) === Number(menuItemId))?.nameVi || `Món #${menuItemId}`}</b> : (
+          <label className="adm-field"><span className="adm-label">Món ăn</span>
+            <select className="adm-input" required value={menuItemId} onChange={(event) => setMenuItemId(event.target.value)}>
+              <option value="">— Chọn món —</option>
+              {choices.map((dish) => <option key={dish.id} value={dish.id}>{dish.nameVi} · {vnd(dish.price)}</option>)}
+            </select>
+            {!choices.length && <small className="adm-muted">Không còn món đang bán để thêm. Muốn gọi thêm món đã có, hãy sửa số lượng trong đơn.</small>}
+          </label>
+        )}
+        <label className="adm-field"><span className="adm-label">Số lượng</span>
+          <input className="adm-input" type="number" required min="1" step="1" value={quantity} onChange={(event) => setQuantity(event.target.value)} />
+        </label>
+        <label className="adm-field"><span className="adm-label">Ghi chú cho bếp</span>
+          <textarea className="adm-input" maxLength={1000} value={note} onChange={(event) => setNote(event.target.value)} />
+        </label>
+        {error && <div className="adm-alert" role="alert">{error}</div>}
+        <div className="adm-form-f"><button type="button" className="adm-btn ghost" onClick={onClose}>Hủy</button>
+          <button className="adm-btn" disabled={busy || (!editing && !choices.length)}>{busy ? 'Đang lưu…' : 'Lưu món'}</button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
 // Trang CHI TIẾT ĐƠN HÀNG: thông tin đơn + các món trong đơn + hóa đơn
 export default function OrderDetail({ id }) {
   const toast = useToast();
   const confirm = useConfirm();
+  const role = useStaffRole();
+  const canPay = canTakePayment(role);
   const order = useApi(`/orders/${id}`);
   const items = useApi(`/order-items?orderId=${id}`);
-  const inv = useApi(`/invoices?orderId=${id}`);
-  const { lk, ready, error: lkError } = useLookups(DEFS);
+  const inv = useApi(canPay ? `/invoices?orderId=${id}` : null);
+  const { lk, ready, error: lkError, reload: reloadLookups } = useLookups(DEFS);
   const [dlg, setDlg] = useState(null); // 'pay' | 'edit'
+  const [dishDialog, setDishDialog] = useState(null);
+  const [lineBusy, setLineBusy] = useState(false);
 
-  const reloadAll = () => { order.reload(); items.reload(); inv.reload(); };
+  const reloadAll = () => { order.reload(); items.reload(); inv.reload(); reloadLookups(); };
   const o = order.data;
   const lines = items.data || [];
   const subtotal = lines.reduce((s, l) => s + l.quantity * Number(l.unitPrice), 0);
@@ -116,23 +175,33 @@ export default function OrderDetail({ id }) {
   const setStatus = async (status, msg) => {
     try {
       await api(`/orders/${id}/status`, { method: 'PATCH', body: { status } });
-      if (status === 'CANCELLED') await releaseTable(o.tableId);
       toast(msg); reloadAll();
     } catch (e) { toast(e.message, 'err'); }
   };
   const cancel = async () => {
-    if (await confirm({ title: 'Hủy đơn hàng', message: `Hủy đơn #${id}? Bàn sẽ được trả lại.`, okText: 'Hủy đơn', danger: true })) setStatus('CANCELLED', 'Đã hủy đơn');
+    if (await confirm({ title: 'Hủy đơn hàng', message: `Hủy đơn #${id}? Trạng thái bàn sẽ được cập nhật theo các đơn và lịch đặt còn lại.`, okText: 'Hủy đơn', danger: true })) setStatus('CANCELLED', 'Đã hủy đơn');
   };
 
-  const err = order.error || items.error || lkError;
-  const loading = order.loading || items.loading || !ready;
+  const removeLine = async (line) => {
+    if (!await confirm({ title: 'Bỏ món khỏi đơn', message: 'Xác nhận bỏ món này? Hãy thông báo cho bếp nếu món đã bắt đầu chế biến.', okText: 'Bỏ món', danger: true })) return;
+    setLineBusy(true);
+    try {
+      await api(`/order-items/${id}/${line.menuItemId}`, { method: 'DELETE' });
+      toast('Đã bỏ món khỏi đơn');
+      reloadAll();
+    } catch (requestError) { toast(requestError.message, 'err'); }
+    finally { setLineBusy(false); }
+  };
+
+  const err = order.error || items.error || lkError || (canPay ? inv.error : '');
+  const loading = order.loading || items.loading || !ready || (canPay && inv.loading);
 
   return (
     <>
       <PageHeader icon="🧾" title={`Đơn hàng #${id}`} back={{ href: '/admin/orders', label: 'Đơn hàng' }} subtitle={o ? `Tạo lúc ${dt(o.createdAt)}` : undefined}>
         {o && <Badge value={o.status} />}
         {o?.status === 'OPEN' && <button className="adm-btn info" onClick={() => setStatus('SERVING', 'Đã chuyển sang đang phục vụ')}>Bắt đầu phục vụ</button>}
-        {open && <button className="adm-btn ok" disabled={lines.length === 0} onClick={() => setDlg('pay')}>💳 Thanh toán</button>}
+        {open && canPay && <button className="adm-btn ok" disabled={lines.length === 0} onClick={() => setDlg('pay')}>💳 Thanh toán</button>}
         {open && <button className="adm-btn danger" onClick={cancel}>Hủy đơn</button>}
       </PageHeader>
 
@@ -141,11 +210,13 @@ export default function OrderDetail({ id }) {
       {o && ready && !err && (
         <div className="adm-detail">
           <section className="adm-card adm-section">
-            <h3>Các món trong đơn <span className="adm-muted">{lines.length} món</span></h3>
+            <h3>Các món trong đơn <span className="adm-muted">{lines.length} món</span>
+              {open && <button className="adm-btn sm" onClick={() => setDishDialog({})}>＋ Gọi thêm món</button>}
+            </h3>
             {lines.length === 0 ? <div className="adm-empty">Đơn chưa có món nào.</div> : (
               <div className="adm-table-wrap" style={{ boxShadow: 'none' }}>
                 <table className="adm-table">
-                  <thead><tr><th>Món</th><th className="adm-right">SL</th><th className="adm-right">Đơn giá</th><th className="adm-right">Thành tiền</th></tr></thead>
+                  <thead><tr><th>Món</th><th className="adm-right">SL</th><th className="adm-right">Đơn giá</th><th className="adm-right">Thành tiền</th>{open && <th>Thao tác</th>}</tr></thead>
                   <tbody>
                     {lines.map((l) => {
                       const m = lk.menu.rows.find((x) => x.id === l.menuItemId);
@@ -156,11 +227,15 @@ export default function OrderDetail({ id }) {
                           <td className="adm-num">{l.quantity}</td>
                           <td className="adm-num">{vnd(l.unitPrice)}</td>
                           <td className="adm-num"><b>{vnd(l.quantity * Number(l.unitPrice))}</b></td>
+                          {open && <td><div className="adm-row-actions">
+                            <button className="adm-btn ghost sm" disabled={lineBusy} onClick={() => setDishDialog(l)}>Sửa</button>
+                            <button className="adm-btn danger sm" disabled={lineBusy} onClick={() => removeLine(l)}>Bỏ món</button>
+                          </div></td>}
                         </tr>
                       );
                     })}
                   </tbody>
-                  <tfoot><tr><td colSpan={3}>Tổng cộng</td><td className="adm-num">{vnd(subtotal)}</td></tr></tfoot>
+                  <tfoot><tr><td colSpan={3}>Tổng cộng</td><td className="adm-num">{vnd(subtotal)}</td>{open && <td />}</tr></tfoot>
                 </table>
               </div>
             )}
@@ -168,7 +243,7 @@ export default function OrderDetail({ id }) {
 
           <div>
             <section className="adm-card adm-section">
-              <h3>Thông tin <button className="adm-btn ghost sm" onClick={() => setDlg('edit')}>Sửa</button></h3>
+              <h3>Thông tin {open && <button className="adm-btn ghost sm" onClick={() => setDlg('edit')}>Sửa</button>}</h3>
               <dl className="adm-kv">
                 <dt>Khách hàng</dt>
                 <dd>{o.customerId ? <Link className="adm-link" href={`/admin/customers/${o.customerId}`}>{nameOf(lk, 'customers', o.customerId)}</Link> : 'Khách vãng lai'}</dd>
@@ -179,7 +254,7 @@ export default function OrderDetail({ id }) {
             </section>
             <section className="adm-card adm-section">
               <h3>Hóa đơn</h3>
-              {invoice ? (
+              {!canPay ? <p className="adm-muted">Thu ngân hoặc quản lý sẽ xử lý thanh toán và hóa đơn.</p> : invoice ? (
                 <>
                   <dl className="adm-kv">
                     <dt>Mã HĐ</dt><dd>#{invoice.id}</dd><dt>Thanh toán</dt><dd>{paymentLabel(invoice.paymentMethod)}</dd>
@@ -193,8 +268,10 @@ export default function OrderDetail({ id }) {
         </div>
       )}
 
-      {dlg === 'pay' && <PayDialog order={o} subtotal={subtotal} onClose={() => setDlg(null)} onDone={() => { setDlg(null); reloadAll(); }} />}
-      {dlg === 'edit' && <EditInfo order={o} lk={lk} onClose={() => setDlg(null)} onDone={() => { setDlg(null); reloadAll(); }} />}
+      {open && canPay && dlg === 'pay' && <PayDialog order={o} subtotal={subtotal} onClose={() => setDlg(null)} onDone={() => { setDlg(null); reloadAll(); }} />}
+      {open && dlg === 'edit' && <EditInfo order={o} lk={lk} onClose={() => setDlg(null)} onDone={() => { setDlg(null); reloadAll(); }} />}
+      {open && dishDialog && <DishDialog orderId={id} lines={lines} menu={lk.menu.rows} editing={dishDialog.menuItemId ? dishDialog : null}
+        onClose={() => setDishDialog(null)} onDone={() => { setDishDialog(null); reloadAll(); }} />}
     </>
   );
 }

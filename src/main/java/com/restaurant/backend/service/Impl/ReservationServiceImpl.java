@@ -14,9 +14,12 @@ import com.restaurant.backend.repository.DiningTableRepository;
 import com.restaurant.backend.repository.ReservationRepository;
 import com.restaurant.backend.service.EmailService;
 import com.restaurant.backend.service.ReservationService;
+import com.restaurant.backend.service.TableStateService;
+import jakarta.persistence.EntityManager;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.annotation.Isolation;
 
 import java.time.LocalDateTime;
 import java.util.Comparator;
@@ -26,6 +29,7 @@ import java.util.Objects;
 import java.util.Set;
 
 @Service
+@Transactional(isolation = Isolation.READ_COMMITTED)
 public class ReservationServiceImpl implements ReservationService {
 
     // Mỗi lượt đặt giữ bàn tối đa 2 tiếng (có thể chỉnh)
@@ -41,25 +45,23 @@ public class ReservationServiceImpl implements ReservationService {
     private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(ReservationServiceImpl.class);
     private final ReservationMapper reservationMapper;
     private final EmailService emailService;
+    private final TableStateService tableStateService;
+    private final EntityManager entityManager;
 
     @Autowired
     public ReservationServiceImpl(ReservationRepository reservationRepository,
                                   CustomerRepository customerRepository,
                                   DiningTableRepository tableRepository,
                                   ReservationMapper reservationMapper,
-                                  @Autowired(required = false) EmailService emailService) {
+                                  EmailService emailService, TableStateService tableStateService,
+                                  EntityManager entityManager) {
         this.reservationRepository = reservationRepository;
         this.customerRepository = customerRepository;
         this.tableRepository = tableRepository;
         this.reservationMapper = reservationMapper;
         this.emailService = emailService;
-    }
-
-    public ReservationServiceImpl(ReservationRepository reservationRepository,
-                                  CustomerRepository customerRepository,
-                                  DiningTableRepository tableRepository,
-                                  ReservationMapper reservationMapper) {
-        this(reservationRepository, customerRepository, tableRepository, reservationMapper, null);
+        this.tableStateService = tableStateService;
+        this.entityManager = entityManager;
     }
 
     @Override
@@ -105,13 +107,15 @@ public class ReservationServiceImpl implements ReservationService {
     @Transactional
     public Reservation update(Long id, ReservationRequest request) {
         validateBasic(request);
-        Reservation existing = getById(id);
+        Reservation existing = lockReservation(id);
         if (!ACTIVE.contains(existing.getStatus())) {
             throw new BadRequestException("Chỉ sửa được lượt đặt đang chờ hoặc đã xác nhận");
         }
         Customer customer = findCustomer(request.customerId());
-        DiningTable table = findTable(request.tableId());
         DiningTable oldTable = existing.getTable();
+        java.util.stream.Stream.of(oldTable.getId(), request.tableId()).distinct().sorted()
+                .forEach(this::findTable);
+        DiningTable table = findTable(request.tableId());
         // Chỉ bắt buộc "giờ ở tương lai" khi người dùng đổi giờ (sửa số khách / ghi chú của lượt đã quá giờ vẫn được)
         boolean timeChanged = !Objects.equals(existing.getReservedAt(), request.reservedAt());
         validateBooking(request, table, id, timeChanged);
@@ -139,7 +143,11 @@ public class ReservationServiceImpl implements ReservationService {
         if (status == null) {
             throw new BadRequestException("Trạng thái không được để trống");
         }
-        Reservation existing = getById(id);
+        if (status != ReservationStatus.CONFIRMED && status != ReservationStatus.CANCELLED) {
+            throw new BadRequestException("Hãy dùng Nhận bàn để hoàn tất lượt đặt");
+        }
+        Reservation existing = lockReservation(id);
+        findTable(existing.getTable().getId());
         ReservationStatus current = existing.getStatus();
         if (current == ReservationStatus.CANCELLED || current == ReservationStatus.COMPLETED) {
             throw new BadRequestException("Lượt đặt đã kết thúc, không thể đổi trạng thái");
@@ -159,15 +167,16 @@ public class ReservationServiceImpl implements ReservationService {
     @Override
     @Transactional
     public Reservation checkIn(Long id) {
-        Reservation existing = getById(id);
+        Reservation existing = lockReservation(id);
         if (!ACTIVE.contains(existing.getStatus())) {
             throw new BadRequestException("Lượt đặt đã kết thúc, không thể nhận bàn");
         }
-        DiningTable table = existing.getTable();
+        DiningTable table = findTable(existing.getTable().getId());
         if (Boolean.TRUE.equals(table.getDeleted())) {
             throw new BadRequestException("Bàn này đã bị xóa");
         }
-        if (table.getStatus() == TableStatus.OCCUPIED) {
+        if (table.getStatus() == TableStatus.OCCUPIED
+                || tableStateService.hasActiveOrders(Math.toIntExact(table.getId()))) {
             throw new BadRequestException("Bàn " + table.getTableCode() + " đang có khách, hãy trả bàn hoặc đổi sang bàn khác trước");
         }
         existing.setStatus(ReservationStatus.COMPLETED);
@@ -180,7 +189,7 @@ public class ReservationServiceImpl implements ReservationService {
     @Override
     @Transactional
     public void delete(Long id) {
-        Reservation existing = getById(id);
+        Reservation existing = lockReservation(id);
         DiningTable table = existing.getTable();
         reservationRepository.delete(existing);
         releaseIfFree(table);
@@ -209,11 +218,14 @@ public class ReservationServiceImpl implements ReservationService {
                 now.minusMinutes(RESERVE_WINDOW_MINUTES),
                 now.plusMinutes(RESERVE_WINDOW_MINUTES));
         for (Reservation r : due) {
-            DiningTable t = r.getTable();
+            DiningTable t = findTable(r.getTable().getId());
             if (!Boolean.TRUE.equals(t.getDeleted()) && t.getStatus() == TableStatus.AVAILABLE) {
                 t.setStatus(TableStatus.RESERVED);
                 tableRepository.save(t);
             }
+        }
+        for (DiningTable table : tableRepository.findByStatus(TableStatus.RESERVED)) {
+            releaseIfFree(findTable(table.getId()));
         }
     }
 
@@ -236,14 +248,7 @@ public class ReservationServiceImpl implements ReservationService {
         if (table.getStatus() != TableStatus.RESERVED) {
             return;
         }
-        LocalDateTime now = LocalDateTime.now();
-        boolean stillHeld = !reservationRepository.findByTableIdAndStatusAndReservedAtBetween(
-                table.getId(), ReservationStatus.CONFIRMED,
-                now.minusMinutes(RESERVE_WINDOW_MINUTES), now.plusMinutes(RESERVE_WINDOW_MINUTES)).isEmpty();
-        if (!stillHeld) {
-            table.setStatus(TableStatus.AVAILABLE);
-            tableRepository.save(table);
-        }
+        tableStateService.refresh(Math.toIntExact(table.getId()));
     }
 
     private void validateBasic(ReservationRequest r) {
@@ -293,11 +298,19 @@ public class ReservationServiceImpl implements ReservationService {
     }
 
     private DiningTable findTable(Long id) {
-        DiningTable table = tableRepository.findById(id)
+        DiningTable table = tableRepository.findByIdForUpdate(id)
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy bàn id = " + id));
+        entityManager.refresh(table);
         if (Boolean.TRUE.equals(table.getDeleted())) {
             throw new BadRequestException("Bàn này đã bị xóa");
         }
         return table;
+    }
+
+    private Reservation lockReservation(Long id) {
+        Reservation reservation = reservationRepository.findByIdForUpdate(id)
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy lượt đặt " + id));
+        entityManager.refresh(reservation);
+        return reservation;
     }
 }

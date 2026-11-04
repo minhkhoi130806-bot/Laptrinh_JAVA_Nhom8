@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { FeedbackProvider } from './Feedback';
 import Icon from '@/components/ui/Icon';
+import { canAccessAdminRoute as canAccess } from '@/lib/admin/access';
 
 // Menu bên trái, chia nhóm. Thêm trang admin mới chỉ cần thêm 1 dòng ở đây.
 const NAV = [
@@ -51,23 +52,7 @@ const NAV = [
   { title: 'Hệ thống', items: [{ href: '/admin/settings', icon: '⚙️', label: 'Cấu hình nhà hàng' }, { href: '/admin/trash', icon: '🗑️', label: 'Thùng rác' }] },
 ];
 
-const ROLE_ACCESS = {
-  '/admin/kitchen': ['MANAGER', 'CHEF'],
-  '/admin/employees': ['MANAGER'],
-  '/admin/invoices': ['MANAGER', 'CASHIER'],
-  '/admin/analytics': ['MANAGER', 'CASHIER'],
-  '/admin/marketing': ['MANAGER'],
-  '/admin/shifts': ['MANAGER'],
-  '/admin/settings': ['MANAGER'],
-};
 const ROLES = ['MANAGER', 'CASHIER', 'WAITER', 'CHEF'];
-
-const canAccess = (path, role) => {
-  const restrictedPath = Object.keys(ROLE_ACCESS).find(
-    (route) => path === route || path.startsWith(`${route}/`),
-  );
-  return !restrictedPath || ROLE_ACCESS[restrictedPath].includes(role);
-};
 
 export default function AdminShell({ children }) {
   const path = usePathname();

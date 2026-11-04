@@ -1,6 +1,8 @@
 package com.restaurant.backend.controller;
 
 import com.restaurant.backend.dto.OrderRequest;
+import com.restaurant.backend.dto.CreateOrderRequest;
+import jakarta.validation.Valid;
 import com.restaurant.backend.dto.OrderResponse;
 import com.restaurant.backend.dto.OrderStatusRequest;
 import com.restaurant.backend.dto.OrderTotals;
@@ -57,6 +59,12 @@ public class OrderController {
 
         // Chuyển kết quả Entity thành DTO Response trả về
         return chuyenThanhResponse(donHangMoi);
+    }
+
+    @PostMapping("/with-items")
+    @ResponseStatus(HttpStatus.CREATED)
+    public OrderResponse createWithItems(@Valid @RequestBody CreateOrderRequest request) {
+        return chuyenThanhResponse(orderService.createWithItems(request));
     }
 
     /**

@@ -2,6 +2,7 @@ package com.restaurant.backend.controller;
 
 import com.restaurant.backend.dto.EmployeeRequest;
 import com.restaurant.backend.dto.EmployeeResponse;
+import com.restaurant.backend.dto.EmployeeLookupResponse;
 import com.restaurant.backend.dto.ListScope;
 import com.restaurant.backend.mapper.EmployeeMapper;
 import com.restaurant.backend.service.EmployeeService;
@@ -32,6 +33,13 @@ public class EmployeeController {
     @GetMapping
     public List<EmployeeResponse> getAllEmployees(@RequestParam(defaultValue = "ACTIVE") ListScope scope) {
         return employeeService.getAll(scope).stream().map(employeeMapper::toResponse).toList();
+    }
+
+    @GetMapping("/lookup")
+    public List<EmployeeLookupResponse> getEmployeeNames() {
+        return employeeService.getAll(ListScope.ALL).stream()
+                .map(employee -> new EmployeeLookupResponse(employee.getId(), employee.getFullName(), employee.getDeleted()))
+                .toList();
     }
 
     @GetMapping("/{id}")

@@ -3,13 +3,20 @@ package com.restaurant.backend.repository;
 import com.restaurant.backend.entity.Reservation;
 import com.restaurant.backend.entity.ReservationStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 public interface ReservationRepository extends JpaRepository<Reservation, Long> {
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select r from Reservation r where r.id = :id")
+    Optional<Reservation> findByIdForUpdate(@Param("id") Long id);
+
     List<Reservation> findByCustomerId(Long customerId);
 
     @Query("SELECT r FROM Reservation r LEFT JOIN FETCH r.customer LEFT JOIN FETCH r.table WHERE r.customer.id = :customerId ORDER BY r.reservedAt DESC")
